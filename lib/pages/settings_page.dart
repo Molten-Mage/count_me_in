@@ -5,12 +5,19 @@ import '../services/theme_controller.dart';
 import '../widgets/change_password_dialog.dart';
 import '../widgets/confirm_delete_dialog.dart';
 import '../widgets/delete_account_dialog.dart';
+import 'privacy_policy_page.dart';
 
 class SettingsPage extends StatelessWidget {
   final bool isGuest;
   final VoidCallback? onSignIn;
 
   const SettingsPage({super.key, this.isGuest = false, this.onSignIn});
+
+  void _openPrivacyPolicy(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (context) => const PrivacyPolicyPage()),
+    );
+  }
 
   String _providerLabel(String providerId) {
     switch (providerId) {
@@ -120,6 +127,15 @@ class SettingsPage extends StatelessWidget {
                 ),
               ),
             ),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16),
+              child: Divider(),
+            ),
+            ListTile(
+              leading: const Icon(Icons.privacy_tip_outlined),
+              title: const Text('Privacy Policy'),
+              onTap: () => _openPrivacyPolicy(context),
+            ),
           ],
         ),
       );
@@ -187,6 +203,15 @@ class SettingsPage extends StatelessWidget {
           const SizedBox(height: 8),
           _buildThemeSection(context),
           const SizedBox(height: 8),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16),
+            child: Divider(),
+          ),
+          ListTile(
+            leading: const Icon(Icons.privacy_tip_outlined),
+            title: const Text('Privacy Policy'),
+            onTap: () => _openPrivacyPolicy(context),
+          ),
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 16),
             child: Divider(),

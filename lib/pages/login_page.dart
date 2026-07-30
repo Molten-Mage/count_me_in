@@ -5,11 +5,13 @@ import 'dart:math';
 import 'package:crypto/crypto.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
 import '../widgets/tally_icon.dart';
+import 'privacy_policy_page.dart';
 
 /// Whether to offer "Sign in with Apple" — only relevant on Apple platforms
 /// (and the entitlement is only configured for iOS/macOS builds).
@@ -48,6 +50,8 @@ class _LoginPageState extends State<LoginPage> {
   bool _isSubmitting = false;
   String? _errorMessage;
   String? _infoMessage;
+  late final _privacyPolicyRecognizer = TapGestureRecognizer()
+    ..onTap = _openPrivacyPolicy;
 
   @override
   void dispose() {
@@ -55,7 +59,14 @@ class _LoginPageState extends State<LoginPage> {
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     _usernameController.dispose();
+    _privacyPolicyRecognizer.dispose();
     super.dispose();
+  }
+
+  void _openPrivacyPolicy() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (context) => const PrivacyPolicyPage()),
+    );
   }
 
   void _backToMethodPicker() {
@@ -327,6 +338,27 @@ class _LoginPageState extends State<LoginPage> {
           textAlign: TextAlign.center,
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
             color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: 24),
+        RichText(
+          textAlign: TextAlign.center,
+          text: TextSpan(
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+            children: [
+              const TextSpan(text: 'By continuing, you agree to our '),
+              TextSpan(
+                text: 'Privacy Policy',
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.primary,
+                  decoration: TextDecoration.underline,
+                ),
+                recognizer: _privacyPolicyRecognizer,
+              ),
+              const TextSpan(text: '.'),
+            ],
           ),
         ),
       ],

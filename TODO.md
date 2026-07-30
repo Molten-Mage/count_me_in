@@ -8,7 +8,7 @@
 - [ ] Finish Apple Sign In setup — Dart side is implemented (`login_page.dart`, gated to iOS/macOS) and won't affect Android/current testing, but it can't actually work until you: enroll in the Apple Developer Program (needed even to add the Xcode capability, not just to ship), add the "Sign in with Apple" capability in Xcode's Signing & Capabilities tab, and enable the Apple provider in the Firebase Console (Authentication → Sign-in method)
 - [ ] Enroll in the Apple Developer Program ($99/yr) when ready to share beyond your own device
 - [ ] Set up App Store Connect record and app icon
-- [ ] Write a privacy policy (required even for simple apps, more so once accounts/backend exist)
+- [x] Write a privacy policy (required even for simple apps, more so once accounts/backend exist)
 - [ ] Run a TestFlight beta with a few real users (friends/family group is a natural first test)
 - [ ] Submit for App Store review
 
