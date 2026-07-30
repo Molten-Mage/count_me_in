@@ -57,10 +57,25 @@ class GroupService {
         );
   }
 
-  String _generateCode() {
+  /// Generates a 6-character invite code, retrying on the (extremely rare)
+  /// chance it collides with a code already in use.
+  Future<String> _generateUniqueCode() async {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
     final random = Random();
-    return List.generate(6, (_) => chars[random.nextInt(chars.length)]).join();
+    for (var attempt = 0; attempt < 10; attempt++) {
+      final code = List.generate(
+        6,
+        (_) => chars[random.nextInt(chars.length)],
+      ).join();
+      final existing = await _groups
+          .where('code', isEqualTo: code)
+          .limit(1)
+          .get();
+      if (existing.docs.isEmpty) return code;
+    }
+    throw StateError(
+      'Could not generate a unique invite code. Please try again.',
+    );
   }
 
   /// The signed-in user's saved group display order (a list of group ids).
@@ -92,7 +107,7 @@ class GroupService {
     int? target,
     bool adminControlled = false,
   }) async {
-    final code = _generateCode();
+    final code = await _generateUniqueCode();
     final now = DateTime.now();
     final docRef = _groups.doc();
     final group = Group(

@@ -16,7 +16,7 @@
 - [ ] Tighten Firestore rules — a member can currently write any value (including negative) directly to their own `tally` field with no server-side bound, bypassing the app's client-side clamping
 - [ ] Add crash/error reporting (e.g. Firebase Crashlytics) — no visibility into real-user crashes right now
 - [x] Add "Forgot password" — send a password reset email link
-- [ ] Make invite codes actually unique — `_generateCode()` picks 6 random chars with no collision check against Firestore
+- [x] Make invite codes actually unique — `_generateCode()` picks 6 random chars with no collision check against Firestore
 - [ ] Expand automated test coverage beyond the default counter smoke test in `test/widget_test.dart`
 - [ ] Fix auth email deliverability to iCloud — confirmed an iCloud recipient never got a password-reset email (not spam-foldered, account/email confirmed correct in Firebase Console) while Gmail worked fine. Firebase Auth's default sender (`noreply@<project>.firebaseapp.com`, shared Google IPs) has a known reputation problem with iCloud Mail's filtering. Real fix needs a custom sending domain configured in Firebase Console (Authentication → Templates) with proper SPF/DKIM/DMARC — requires owning a domain first
 
