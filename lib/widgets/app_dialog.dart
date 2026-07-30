@@ -24,7 +24,13 @@ class AppDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     return Dialog(
       shape: appDialogShape,
-      child: Padding(padding: padding, child: child),
+      child: Padding(
+        padding: padding,
+        // Lets the dialog grow with its content up to the space the
+        // keyboard leaves available, then scroll instead of overflowing
+        // past the popup's bounds (which would hide the action buttons).
+        child: SingleChildScrollView(child: child),
+      ),
     );
   }
 }
