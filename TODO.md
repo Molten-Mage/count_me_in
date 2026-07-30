@@ -21,7 +21,7 @@
 - [ ] Fix auth email deliverability to iCloud — confirmed an iCloud recipient never got a password-reset email (not spam-foldered, account/email confirmed correct in Firebase Console) while Gmail worked fine. Firebase Auth's default sender (`noreply@<project>.firebaseapp.com`, shared Google IPs) has a known reputation problem with iCloud Mail's filtering. Real fix needs a custom sending domain configured in Firebase Console (Authentication → Templates) with proper SPF/DKIM/DMARC — requires owning a domain first
 
 *Cosmetic*
-- [ ] Update `pubspec.yaml` description from the default `"A new Flutter project."`
+- [x] Update `pubspec.yaml` description from the default `"A new Flutter project."`
 
 **Personal goals (polish current MVP)**
 - [x] Fix keyboard not dismissing when tapping outside the step field
