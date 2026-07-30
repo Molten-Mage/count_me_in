@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../models/counter.dart';
 import '../services/counter_storage.dart';
+import '../widgets/confirm_delete_dialog.dart';
 import '../widgets/counter_form_dialog.dart';
 import '../widgets/goal_reached_dialog.dart';
 import '../widgets/tally_stepper.dart';
@@ -23,6 +24,7 @@ class _HomePageState extends State<HomePage> {
   final Map<String, TextEditingController> _stepControllers = {};
   List<Counter> _counters = [];
   bool _loading = true;
+  bool _editMode = false;
 
   @override
   void initState() {
@@ -171,10 +173,39 @@ class _HomePageState extends State<HomePage> {
     await _storage.saveCounters(_counters);
   }
 
+  Future<void> _reorderCounters(int oldIndex, int newIndex) async {
+    setState(() {
+      final counter = _counters.removeAt(oldIndex);
+      _counters.insert(newIndex, counter);
+    });
+    await _storage.saveCounters(_counters);
+  }
+
+  void _confirmDeleteCounter(Counter counter) {
+    showConfirmDeleteDialog(
+      context,
+      title: 'Delete counter',
+      message:
+          'Are you sure you want to delete "${counter.title}"? '
+          'This can\'t be undone.',
+      onConfirm: () => _deleteCounter(counter),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Counters')),
+      appBar: AppBar(
+        title: const Text('Counters'),
+        actions: [
+          if (_counters.isNotEmpty)
+            IconButton(
+              onPressed: () => setState(() => _editMode = !_editMode),
+              icon: Icon(_editMode ? Icons.done : Icons.edit_outlined),
+              tooltip: _editMode ? 'Done' : 'Edit',
+            ),
+        ],
+      ),
       body: GestureDetector(
         onTap: () => FocusScope.of(context).unfocus(),
         behavior: HitTestBehavior.opaque,
@@ -182,6 +213,38 @@ class _HomePageState extends State<HomePage> {
             ? const Center(child: CircularProgressIndicator())
             : _counters.isEmpty
             ? const Center(child: Text('No counters yet. Tap + to add one.'))
+            : _editMode
+            ? ReorderableListView.builder(
+                padding: const EdgeInsets.all(8),
+                buildDefaultDragHandles: false,
+                itemCount: _counters.length,
+                onReorderItem: _reorderCounters,
+                itemBuilder: (context, index) {
+                  final counter = _counters[index];
+                  return Card(
+                    key: ValueKey(counter.id),
+                    child: ListTile(
+                      leading: ReorderableDragStartListener(
+                        index: index,
+                        child: const Icon(Icons.drag_handle),
+                      ),
+                      title: Text(
+                        counter.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      trailing: IconButton(
+                        onPressed: () => _confirmDeleteCounter(counter),
+                        icon: Icon(
+                          Icons.delete_outline,
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                        tooltip: 'Delete counter',
+                      ),
+                    ),
+                  );
+                },
+              )
             : ListView.builder(
                 padding: const EdgeInsets.all(8),
                 itemCount: _counters.length,

@@ -26,6 +26,9 @@ class FirestoreCounterStorage implements CounterStorage {
 
   @override
   Future<void> saveCounters(List<Counter> counters) async {
-    await _doc.set({'counters': counters.map((c) => c.toJson()).toList()});
+    await _doc.set(
+      {'counters': counters.map((c) => c.toJson()).toList()},
+      SetOptions(merge: true),
+    );
   }
 }

@@ -1,4 +1,4 @@
-import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -6,6 +6,7 @@ import '../models/group.dart';
 import '../models/group_member.dart';
 import '../services/group_service.dart';
 import '../widgets/app_dialog.dart';
+import '../widgets/confirm_delete_dialog.dart';
 import '../widgets/error_dialog.dart';
 import 'group_detail_page.dart';
 
@@ -18,6 +19,83 @@ class GroupsListPage extends StatefulWidget {
 
 class _GroupsListPageState extends State<GroupsListPage> {
   final _groupService = GroupService();
+  List<String> _groupOrder = [];
+  bool _editMode = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadGroupOrder();
+  }
+
+  Future<void> _loadGroupOrder() async {
+    final order = await _groupService.loadGroupOrder();
+    if (!mounted) return;
+    setState(() => _groupOrder = order);
+  }
+
+  // Groups not yet present in the saved order (e.g. newly created or
+  // joined) sort after the ones that are, in whatever order the stream
+  // returned them.
+  List<Group> _sortedGroups(List<Group> groups) {
+    final orderIndex = {
+      for (var i = 0; i < _groupOrder.length; i++) _groupOrder[i]: i,
+    };
+    final sorted = [...groups];
+    sorted.sort((a, b) {
+      final aIndex = orderIndex[a.id];
+      final bIndex = orderIndex[b.id];
+      if (aIndex == null && bIndex == null) return 0;
+      if (aIndex == null) return 1;
+      if (bIndex == null) return -1;
+      return aIndex.compareTo(bIndex);
+    });
+    return sorted;
+  }
+
+  Future<void> _reorderGroups(
+    List<Group> currentOrder,
+    int oldIndex,
+    int newIndex,
+  ) async {
+    final reordered = [...currentOrder];
+    final group = reordered.removeAt(oldIndex);
+    reordered.insert(newIndex, group);
+    final newOrder = reordered.map((g) => g.id).toList();
+    setState(() => _groupOrder = newOrder);
+    await _groupService.saveGroupOrder(newOrder);
+  }
+
+  void _confirmDeleteOrLeaveGroup(Group group) {
+    final myUid = FirebaseAuth.instance.currentUser?.uid;
+    final isCreator = group.createdBy == myUid;
+    final isLastMember = group.memberIds.length <= 1;
+
+    if (isCreator && !isLastMember) {
+      showConfirmDeleteDialog(
+        context,
+        title: 'Delete group',
+        message:
+            'Are you sure you want to delete "${group.name}"? '
+            'This removes it for everyone and cannot be undone.',
+        onConfirm: () => _groupService.deleteGroup(group.id),
+      );
+      return;
+    }
+
+    final message = !isCreator
+        ? 'Are you sure you want to leave "${group.name}"?'
+        : 'You\'re the only member left. Leaving will permanently delete '
+              '"${group.name}" for everyone. This can\'t be undone.';
+
+    showConfirmDeleteDialog(
+      context,
+      title: 'Leave group',
+      message: message,
+      confirmLabel: 'Leave',
+      onConfirm: () => _groupService.leaveGroup(group.id),
+    );
+  }
 
   Future<void> _showCreateGroupDialog() async {
     await showDialog<void>(
@@ -124,7 +202,24 @@ class _GroupsListPageState extends State<GroupsListPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Groups')),
+      appBar: AppBar(
+        title: const Text('Groups'),
+        actions: [
+          StreamBuilder<List<Group>>(
+            stream: _groupService.streamMyGroups(),
+            builder: (context, snapshot) {
+              if ((snapshot.data ?? const []).isEmpty) {
+                return const SizedBox.shrink();
+              }
+              return IconButton(
+                onPressed: () => setState(() => _editMode = !_editMode),
+                icon: Icon(_editMode ? Icons.done : Icons.edit_outlined),
+                tooltip: _editMode ? 'Done' : 'Edit',
+              );
+            },
+          ),
+        ],
+      ),
       body: StreamBuilder<List<Group>>(
         stream: _groupService.streamMyGroups(),
         builder: (context, snapshot) {
@@ -136,10 +231,46 @@ class _GroupsListPageState extends State<GroupsListPage> {
               child: Text('Something went wrong: ${snapshot.error}'),
             );
           }
-          final groups = snapshot.data ?? [];
+          final groups = _sortedGroups(snapshot.data ?? []);
           if (groups.isEmpty) {
             return const Center(
               child: Text('No groups yet. Tap + to create or join one.'),
+            );
+          }
+          if (_editMode) {
+            return ReorderableListView.builder(
+              padding: const EdgeInsets.all(8),
+              buildDefaultDragHandles: false,
+              itemCount: groups.length,
+              onReorderItem: (oldIndex, newIndex) =>
+                  _reorderGroups(groups, oldIndex, newIndex),
+              itemBuilder: (context, index) {
+                final group = groups[index];
+                final myUid = FirebaseAuth.instance.currentUser?.uid;
+                final isCreator = group.createdBy == myUid;
+                return Card(
+                  key: ValueKey(group.id),
+                  child: ListTile(
+                    leading: ReorderableDragStartListener(
+                      index: index,
+                      child: const Icon(Icons.drag_handle),
+                    ),
+                    title: Text(
+                      group.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    trailing: IconButton(
+                      onPressed: () => _confirmDeleteOrLeaveGroup(group),
+                      icon: Icon(
+                        isCreator ? Icons.delete_outline : Icons.logout,
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                      tooltip: isCreator ? 'Delete group' : 'Leave group',
+                    ),
+                  ),
+                );
+              },
             );
           }
           return ListView.builder(

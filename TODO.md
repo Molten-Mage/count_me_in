@@ -27,7 +27,7 @@
 - [x] Fix keyboard not dismissing when tapping outside the step field
 - [x] Fix delete confirmation dialog text overflow
 - [x] Handle edge cases (empty title, zero/negative targets, very large counts)
-- [ ] Be able to reorder groups and personal goals in the list
+- [x] Be able to reorder groups and personal goals in the list
 - [ ] Be able to mark personal goals as completed
 
 **Backend & auth**

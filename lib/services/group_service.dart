@@ -63,6 +63,22 @@ class GroupService {
     return List.generate(6, (_) => chars[random.nextInt(chars.length)]).join();
   }
 
+  /// The signed-in user's saved group display order (a list of group ids).
+  /// Groups not present in this list (e.g. newly joined ones) sort after
+  /// the ones that are.
+  Future<List<String>> loadGroupOrder() async {
+    final doc = await _firestore.collection('users').doc(_uid).get();
+    final order = doc.data()?['groupOrder'] as List<dynamic>?;
+    return order?.cast<String>() ?? [];
+  }
+
+  Future<void> saveGroupOrder(List<String> groupIds) async {
+    await _firestore.collection('users').doc(_uid).set(
+      {'groupOrder': groupIds},
+      SetOptions(merge: true),
+    );
+  }
+
   Future<void> updateGroup(
     String groupId, {
     required String name,
