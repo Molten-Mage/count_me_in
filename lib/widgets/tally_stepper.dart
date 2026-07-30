@@ -12,6 +12,7 @@ class TallyStepper extends StatelessWidget {
   final VoidCallback onDecrement;
   final VoidCallback onIncrement;
   final double iconSize;
+  final FocusNode? focusNode;
 
   const TallyStepper({
     super.key,
@@ -19,6 +20,7 @@ class TallyStepper extends StatelessWidget {
     required this.onDecrement,
     required this.onIncrement,
     this.iconSize = 24,
+    this.focusNode,
   });
 
   @override
@@ -35,6 +37,7 @@ class TallyStepper extends StatelessWidget {
           width: iconSize + 20,
           child: TextField(
             controller: stepController,
+            focusNode: focusNode,
             textAlign: TextAlign.center,
             keyboardType: TextInputType.number,
             inputFormatters: [

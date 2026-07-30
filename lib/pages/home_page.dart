@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../models/counter.dart';
 import '../services/counter_storage.dart';
@@ -12,8 +13,9 @@ import 'counter_detail_page.dart';
 
 class HomePage extends StatefulWidget {
   final CounterStorage storage;
+  final bool active;
 
-  const HomePage({super.key, required this.storage});
+  const HomePage({super.key, required this.storage, this.active = true});
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -22,6 +24,7 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   late final CounterStorage _storage = widget.storage;
   final Map<String, TextEditingController> _stepControllers = {};
+  final Map<String, FocusNode> _stepFocusNodes = {};
   List<Counter> _counters = [];
   bool _loading = true;
   bool _editMode = false;
@@ -33,11 +36,36 @@ class _HomePageState extends State<HomePage> {
   }
 
   @override
+  void didUpdateWidget(covariant HomePage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.active && !widget.active && _editMode) {
+      setState(() => _editMode = false);
+    }
+  }
+
+  @override
   void dispose() {
     for (final controller in _stepControllers.values) {
       controller.dispose();
     }
+    for (final node in _stepFocusNodes.values) {
+      node.dispose();
+    }
     super.dispose();
+  }
+
+  FocusNode _stepFocusNodeFor(Counter counter) {
+    return _stepFocusNodes.putIfAbsent(counter.id, () => FocusNode());
+  }
+
+  // Belt-and-braces keyboard dismissal for navigating away from a counter
+  // whose step field is focused: unfocusing alone doesn't reliably stop the
+  // platform from restoring the software keyboard when we later pop back
+  // to this route, so we also explicitly ask the platform to hide it.
+  void _dismissStepKeyboard(Counter counter) {
+    _stepFocusNodeFor(counter).unfocus();
+    FocusManager.instance.primaryFocus?.unfocus();
+    SystemChannels.textInput.invokeMethod<void>('TextInput.hide');
   }
 
   TextEditingController _stepControllerFor(Counter counter) {
@@ -130,6 +158,7 @@ class _HomePageState extends State<HomePage> {
       ];
     });
     _stepControllers.remove(counter.id)?.dispose();
+    _stepFocusNodes.remove(counter.id)?.dispose();
     await _storage.saveCounters(_counters);
   }
 
@@ -253,8 +282,9 @@ class _HomePageState extends State<HomePage> {
                   final progress = counter.progress;
                   return Card(
                     child: InkWell(
-                      onTap: () {
-                        Navigator.of(context).push(
+                      onTap: () async {
+                        _dismissStepKeyboard(counter);
+                        await Navigator.of(context).push(
                           MaterialPageRoute(
                             builder: (context) => CounterDetailPage(
                               counter: counter,
@@ -275,6 +305,15 @@ class _HomePageState extends State<HomePage> {
                             ),
                           ),
                         );
+                        // Popping back to this route can otherwise restore
+                        // focus (and the keyboard) to whichever step field
+                        // was focused before navigating away. That
+                        // restoration can happen on the frame after this
+                        // one, so dismiss both now and after that frame.
+                        if (context.mounted) _dismissStepKeyboard(counter);
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (mounted) _dismissStepKeyboard(counter);
+                        });
                       },
                       child: Padding(
                         padding: const EdgeInsets.all(12),
@@ -307,6 +346,7 @@ class _HomePageState extends State<HomePage> {
                               children: [
                                 TallyStepper(
                                   stepController: _stepControllerFor(counter),
+                                  focusNode: _stepFocusNodeFor(counter),
                                   onDecrement: () =>
                                       _decrement(counter, _stepFor(counter)),
                                   onIncrement: () =>

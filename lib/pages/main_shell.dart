@@ -25,18 +25,17 @@ class _MainShellState extends State<MainShell> {
       ? LocalCounterStorage()
       : FirestoreCounterStorage();
 
-  late final List<Widget> _pages = [
-    widget.isGuest
-        ? _GuestGroupsPlaceholder(onSignIn: widget.onSignIn)
-        : const GroupsListPage(),
-    HomePage(storage: _storage),
-    SettingsPage(isGuest: widget.isGuest, onSignIn: widget.onSignIn),
-  ];
-
   @override
   Widget build(BuildContext context) {
+    final pages = [
+      widget.isGuest
+          ? _GuestGroupsPlaceholder(onSignIn: widget.onSignIn)
+          : GroupsListPage(active: _selectedIndex == 0),
+      HomePage(storage: _storage, active: _selectedIndex == 1),
+      SettingsPage(isGuest: widget.isGuest, onSignIn: widget.onSignIn),
+    ];
     return Scaffold(
-      body: IndexedStack(index: _selectedIndex, children: _pages),
+      body: IndexedStack(index: _selectedIndex, children: pages),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selectedIndex,
         onDestinationSelected: (index) =>

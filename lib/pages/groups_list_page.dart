@@ -11,7 +11,9 @@ import '../widgets/error_dialog.dart';
 import 'group_detail_page.dart';
 
 class GroupsListPage extends StatefulWidget {
-  const GroupsListPage({super.key});
+  final bool active;
+
+  const GroupsListPage({super.key, this.active = true});
 
   @override
   State<GroupsListPage> createState() => _GroupsListPageState();
@@ -26,6 +28,14 @@ class _GroupsListPageState extends State<GroupsListPage> {
   void initState() {
     super.initState();
     _loadGroupOrder();
+  }
+
+  @override
+  void didUpdateWidget(covariant GroupsListPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.active && !widget.active && _editMode) {
+      setState(() => _editMode = false);
+    }
   }
 
   Future<void> _loadGroupOrder() async {
