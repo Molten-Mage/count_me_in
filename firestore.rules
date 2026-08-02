@@ -59,11 +59,27 @@ service cloud.firestore {
 
       match /members/{memberId} {
         allow read: if request.auth != null;
+
+        // Joining a group is always self-service, and the member doc must
+        // start at exactly zero.
+        allow create: if request.auth != null
+          && request.auth.uid == memberId
+          && request.resource.data.keys().hasOnly(['displayName', 'tally', 'joinedAt'])
+          && request.resource.data.displayName is string
+          && request.resource.data.tally == 0
+          && request.resource.data.joinedAt is timestamp;
+
         // In a member-controlled group (the default, and legacy groups
-        // predating the `adminControlled` field) each member writes their
+        // predating the `adminControlled` field) each member updates their
         // own doc. In an admin-controlled group only the group's creator
-        // can write to any member's doc, including their own.
-        allow write: if request.auth != null
+        // can update any member's doc, including their own. Only the
+        // `tally` field may change via update, and it must stay a
+        // non-negative int within a sane bound — previously any value
+        // (including negative, or unbounded) was accepted here with no
+        // server-side check, relying only on the app's client-side
+        // clamping. Keep this bound in sync with `maxCounterInput` in
+        // lib/widgets/app_dialog.dart.
+        allow update: if request.auth != null
           && (
             (
               request.auth.uid == memberId
@@ -71,12 +87,20 @@ service cloud.firestore {
             )
             || request.auth.uid
               == get(/databases/$(database)/documents/groups/$(groupId)).data.createdBy
-          );
-        // The group creator can remove other members' docs when deleting
-        // the whole group.
+          )
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['tally'])
+          && request.resource.data.tally is int
+          && request.resource.data.tally >= 0
+          && request.resource.data.tally <= 999999;
+
+        // Any member can delete their own doc (leaving the group); the
+        // group creator can also remove other members' docs.
         allow delete: if request.auth != null
-          && request.auth.uid
-            == get(/databases/$(database)/documents/groups/$(groupId)).data.createdBy;
+          && (
+            request.auth.uid == memberId
+            || request.auth.uid
+              == get(/databases/$(database)/documents/groups/$(groupId)).data.createdBy
+          );
       }
     }
   }
