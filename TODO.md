@@ -14,7 +14,8 @@
 
 *Worth fixing before real users touch it*
 - [ ] Tighten Firestore rules — a member can currently write any value (including negative) directly to their own `tally` field with no server-side bound, bypassing the app's client-side clamping
-- [ ] Add crash/error reporting (e.g. Firebase Crashlytics) — no visibility into real-user crashes right now
+- [x] Add crash/error reporting (e.g. Firebase Crashlytics) — no visibility into real-user crashes right now
+- [ ] Monitor Crashlytics once live and check whether iOS dSYM upload is actually needed — reporting itself works (Dart-level errors and native crashes both show up), but iOS native crashes won't be symbolicated without the dSYM upload build phase, which we backed out after it repeatedly broke the Xcode build (see git history around the Crashlytics setup). Revisit only if real native crashes show up unsymbolicated in practice
 - [x] Add "Forgot password" — send a password reset email link
 - [x] Make invite codes actually unique — `_generateCode()` picks 6 random chars with no collision check against Firestore
 - [ ] Expand automated test coverage beyond the default counter smoke test in `test/widget_test.dart`
@@ -95,3 +96,4 @@
 - [ ] Decide free-tier limits (e.g. capped number of personal counters)
 - [ ] Scope what a paid tier unlocks (unlimited counters and/or group features)
 - [ ] Implement in-app purchase or subscription via StoreKit
+- [ ] Investigate ads (network, placement, and whether they're worth it alongside/instead of a paid tier)

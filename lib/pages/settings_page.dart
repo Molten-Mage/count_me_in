@@ -1,4 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../services/theme_controller.dart';
@@ -136,6 +138,20 @@ class SettingsPage extends StatelessWidget {
               title: const Text('Privacy Policy'),
               onTap: () => _openPrivacyPolicy(context),
             ),
+            // TODO: remove once Crashlytics reporting is confirmed working.
+            if (kDebugMode) ...[
+              _ForceCrashTile(
+                label: 'Force native test crash',
+                subtitle: 'Native crash — needs dSYM to symbolicate',
+                onConfirm: () => FirebaseCrashlytics.instance.crash(),
+              ),
+              _ForceCrashTile(
+                label: 'Force Dart test crash',
+                subtitle: 'Dart exception — readable without dSYM',
+                onConfirm: () =>
+                    throw Exception('Crashlytics Dart test crash'),
+              ),
+            ],
           ],
         ),
       );
@@ -212,6 +228,19 @@ class SettingsPage extends StatelessWidget {
             title: const Text('Privacy Policy'),
             onTap: () => _openPrivacyPolicy(context),
           ),
+          // TODO: remove once Crashlytics reporting is confirmed working.
+          if (kDebugMode) ...[
+            _ForceCrashTile(
+              label: 'Force native test crash',
+              subtitle: 'Native crash — needs dSYM to symbolicate',
+              onConfirm: () => FirebaseCrashlytics.instance.crash(),
+            ),
+            _ForceCrashTile(
+              label: 'Force Dart test crash',
+              subtitle: 'Dart exception — readable without dSYM',
+              onConfirm: () => throw Exception('Crashlytics Dart test crash'),
+            ),
+          ],
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 16),
             child: Divider(),
@@ -246,6 +275,45 @@ class SettingsPage extends StatelessWidget {
             onTap: () => showDeleteAccountDialog(context),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// TODO: temporary, for verifying Crashlytics reporting end-to-end — remove
+// this whole widget (and both usages of it) once confirmed working.
+class _ForceCrashTile extends StatelessWidget {
+  final String label;
+  final String subtitle;
+  final VoidCallback onConfirm;
+
+  const _ForceCrashTile({
+    required this.label,
+    required this.subtitle,
+    required this.onConfirm,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      leading: Icon(
+        Icons.bug_report_outlined,
+        color: Theme.of(context).colorScheme.error,
+      ),
+      title: Text(
+        label,
+        style: TextStyle(color: Theme.of(context).colorScheme.error),
+      ),
+      subtitle: Text(subtitle),
+      onTap: () => showConfirmDeleteDialog(
+        context,
+        title: label,
+        message:
+            'This immediately crashes the app to test Crashlytics '
+            "reporting. Relaunch the app afterward and check the "
+            'Firebase console in a few minutes.',
+        confirmLabel: 'Crash now',
+        onConfirm: onConfirm,
       ),
     );
   }
