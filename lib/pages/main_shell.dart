@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../services/counter_storage.dart';
 import '../services/firestore_counter_storage.dart';
 import '../services/local_counter_storage.dart';
+import '../widgets/ad_banner.dart';
 import '../widgets/tally_icon.dart';
 import 'groups_list_page.dart';
 import 'home_page.dart';
@@ -35,7 +36,17 @@ class _MainShellState extends State<MainShell> {
       SettingsPage(isGuest: widget.isGuest, onSignIn: widget.onSignIn),
     ];
     return Scaffold(
-      body: IndexedStack(index: _selectedIndex, children: pages),
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            const AdBanner(),
+            Expanded(
+              child: IndexedStack(index: _selectedIndex, children: pages),
+            ),
+          ],
+        ),
+      ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selectedIndex,
         onDestinationSelected: (index) =>

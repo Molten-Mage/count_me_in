@@ -11,6 +11,7 @@
 - [x] Write a privacy policy (required even for simple apps, more so once accounts/backend exist)
 - [ ] Run a TestFlight beta with a few real users (friends/family group is a natural first test)
 - [ ] Submit for App Store review
+- [ ] Swap the AdMob test App ID/ad unit IDs for real ones from an actual AdMob account before release, add a GDPR/ATT consent flow (Google's UMP SDK) if serving personalized ads, and update `PRIVACY.md` — it currently states "no ads and no third-party trackers," which stops being true once this ships for real
 
 *Worth fixing before real users touch it*
 - [x] Tighten Firestore rules — a member can currently write any value (including negative) directly to their own `tally` field with no server-side bound, bypassing the app's client-side clamping
@@ -96,4 +97,5 @@
 - [ ] Decide free-tier limits (e.g. capped number of personal counters)
 - [ ] Scope what a paid tier unlocks (unlimited counters and/or group features)
 - [ ] Implement in-app purchase or subscription via StoreKit
-- [ ] Investigate ads (network, placement, and whether they're worth it alongside/instead of a paid tier)
+- [x] Investigate ads (network, placement, and whether they're worth it alongside/instead of a paid tier) — went with a top banner via AdMob (`google_mobile_ads`), currently wired up with Google's public test IDs in `AndroidManifest.xml`, `Info.plist`, and `lib/widgets/ad_banner.dart`
+- [ ] Investigate making the ad banner temporary/conditional rather than always showing — e.g. hidden for brand-new users during their first session or first few opens, so the app doesn't feel ad-cluttered before someone's had a chance to get value from it. Could also tie into the free-tier/paid-tier decision below (e.g. no ads until X counters/groups, or ads only after a grace period)

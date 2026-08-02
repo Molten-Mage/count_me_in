@@ -26,6 +26,12 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<!-- AdMob test App ID (developers.google.com/admob/ios/test-ads).
+	     Replace with your real App ID from the AdMob console before release. -->
+	<key>GADApplicationIdentifier</key>
+	<string>ca-app-pub-3940256099942544~1458002511</string>
+	<key>NSUserTrackingUsageDescription</key>
+	<string>This identifier will be used to deliver personalized ads to you.</string>
 	<key>GIDClientID</key>
 	<string>1057531841336-d5j4npjmblnnuohm4qlub3rdpjpkb38m.apps.googleusercontent.com</string>
 	<key>CFBundleURLTypes</key>

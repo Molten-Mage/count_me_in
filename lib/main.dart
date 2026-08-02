@@ -1,8 +1,11 @@
+import 'dart:io';
+
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 import 'firebase_options.dart';
@@ -32,6 +35,16 @@ void main() async {
     // Google Sign-In isn't configured on every platform (e.g. desktop);
     // don't block app startup if it fails to initialize.
   }
+
+  // Ads SDK only supports Android/iOS.
+  if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
+    try {
+      await MobileAds.instance.initialize();
+    } catch (_) {
+      // Don't block app startup if ad init fails (e.g. no network yet).
+    }
+  }
+
   runApp(const MyApp());
 }
 

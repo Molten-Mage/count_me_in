@@ -3,6 +3,12 @@
         android:label="count_me_in"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
+        <!-- AdMob test App ID (developers.google.com/admob/android/test-ads).
+             Replace with your real App ID from the AdMob console before
+             release. -->
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="ca-app-pub-3940256099942544~3347511713"/>
         <activity
             android:name=".MainActivity"
             android:exported="true"
