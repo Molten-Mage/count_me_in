@@ -163,35 +163,54 @@ class _CounterDetailPageState extends State<CounterDetailPage> {
       appBar: AppBar(
         title: Text(_counter.title),
         actions: [
-          IconButton(
-            tooltip: 'Edit',
-            icon: const Icon(Icons.edit_outlined),
-            onPressed: () => showCounterFormDialog(
-              context,
-              existing: _counter,
-              onSubmit: (title, target) {
-                widget.onEdit(title, target);
-                setState(
-                  () => _counter = _counter.withDetails(
-                    title: title,
-                    target: target,
+          PopupMenuButton<VoidCallback>(
+            tooltip: 'More options',
+            onSelected: (action) => action(),
+            itemBuilder: (_) => [
+              PopupMenuItem<VoidCallback>(
+                value: () => showCounterFormDialog(
+                  context,
+                  existing: _counter,
+                  onSubmit: (title, target) {
+                    widget.onEdit(title, target);
+                    setState(
+                      () => _counter = _counter.withDetails(
+                        title: title,
+                        target: target,
+                      ),
+                    );
+                  },
+                ),
+                child: const ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(Icons.edit_outlined),
+                  title: Text('Edit'),
+                ),
+              ),
+              PopupMenuItem<VoidCallback>(
+                value: () => showConfirmDeleteDialog(
+                  context,
+                  title: 'Delete counter',
+                  message:
+                      'Are you sure you want to delete "${_counter.title}"?',
+                  onConfirm: () {
+                    widget.onDelete();
+                    Navigator.of(context).pop();
+                  },
+                ),
+                child: ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(
+                    Icons.delete_outline,
+                    color: Theme.of(context).colorScheme.error,
                   ),
-                );
-              },
-            ),
-          ),
-          IconButton(
-            tooltip: 'Delete',
-            icon: const Icon(Icons.delete_outline),
-            onPressed: () => showConfirmDeleteDialog(
-              context,
-              title: 'Delete counter',
-              message: 'Are you sure you want to delete "${_counter.title}"?',
-              onConfirm: () {
-                widget.onDelete();
-                Navigator.of(context).pop();
-              },
-            ),
+                  title: Text(
+                    'Delete',
+                    style: TextStyle(color: Theme.of(context).colorScheme.error),
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -203,38 +222,36 @@ class _CounterDetailPageState extends State<CounterDetailPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              SizedBox(
-                width: double.infinity,
-                child: Text(
-                  progress == null
-                      ? '${_counter.count}'
-                      : '${_counter.count} / ${_counter.target}',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.headlineMedium,
-                ),
-              ),
-              if (progress != null) ...[
-                const SizedBox(height: 12),
-                LinearProgressIndicator(value: progress),
-              ],
-              const SizedBox(height: 32),
-              Center(
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                      iconSize: 36,
-                      tooltip: 'Reset',
-                      icon: const Icon(Icons.restart_alt),
-                      onPressed: _confirmReset,
-                    ),
-                    TallyStepper(
-                      stepController: _stepController,
-                      onDecrement: _decrement,
-                      onIncrement: _increment,
-                      iconSize: 36,
-                    ),
-                  ],
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 16,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        progress == null
+                            ? '${_counter.count}'
+                            : '${_counter.count} / ${_counter.target}',
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.headlineMedium,
+                      ),
+                      if (progress != null) ...[
+                        const SizedBox(height: 12),
+                        LinearProgressIndicator(value: progress),
+                      ],
+                      const SizedBox(height: 20),
+                      Center(
+                        child: TallyStepper(
+                          stepController: _stepController,
+                          onDecrement: _decrement,
+                          onIncrement: _increment,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
               const SizedBox(height: 32),
@@ -263,6 +280,19 @@ class _CounterDetailPageState extends State<CounterDetailPage> {
                         : null,
                   ),
                 ),
+              ),
+              const SizedBox(height: 16),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(
+                  Icons.restart_alt,
+                  color: Theme.of(context).colorScheme.error,
+                ),
+                title: Text(
+                  'Reset counter',
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
+                onTap: _confirmReset,
               ),
               if (_counter.target != null) ...[
                 const SizedBox(height: 32),

@@ -115,13 +115,13 @@
 
 **Visuals & platform features**
 - [x] Add a light/dark mode switch in Settings (app currently follows system theme only — `ThemeMode.system` in `main.dart`)
-- [ ] Investigate icon language/style options — look at swapping from Material Icons to a different consistent icon set (or a specific style variant, e.g. outlined vs. filled) to better match the app's look
+- [x] Investigate icon language/style options — look at swapping from Material Icons to a different consistent icon set (or a specific style variant, e.g. outlined vs. filled) to better match the app's look
 - [ ] Look into localization (support languages beyond English)
 - [ ] Investigate an iOS home screen widget (WidgetKit) for incrementing/decrementing a counter without opening the app
-- [ ] Try moving the top-right AppBar action icons (share/delete/edit, etc.) down to the bottom of the screen to streamline navigation
-- [ ] Replace the row of separate AppBar action icons on inner pages with a single 3-line (overflow) menu button showing text-labeled dropdown options instead
-- [ ] Update Counters visuals to match Group counters more closely — same background panel styling, and move the reset button out to sit on its own underneath (rather than wherever it currently lives) so it reads more cohesively with the rest of the app
-- [ ] Audit every popup/dialog in the app for consistent positive/negative (and neutral, where a third option exists) button placement — decide on one convention and make sure `AppDialog`/`AppDialogActions` and any one-off dialogs all actually follow it
+- [x] Try moving the top-right AppBar action icons (share/delete/edit, etc.) down to the bottom of the screen to streamline navigation
+- [x] Replace the row of separate AppBar action icons on inner pages with a single 3-line (overflow) menu button showing text-labeled dropdown options instead
+- [x] Update Counters visuals to match Group counters more closely — same background panel styling, and move the reset button out to sit on its own underneath (rather than wherever it currently lives) so it reads more cohesively with the rest of the app
+- [x] Audit every popup/dialog in the app for consistent positive/negative (and neutral, where a third option exists) button placement — decide on one convention and make sure `AppDialog`/`AppDialogActions` and any one-off dialogs all actually follow it
 
 **Monetization (later, once group features exist)**
 - [ ] Free tier: cap the *combined* total of personal counters + challenges + groups at some number X — paid tier removes the cap

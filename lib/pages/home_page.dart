@@ -88,6 +88,32 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
+  Future<void> _showAddOptions() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      builder: (context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.add),
+                title: const Text('Add a counter'),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  showCounterFormDialog(
+                    context,
+                    onSubmit: (title, target) => _addCounter(title, target),
+                  );
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   Future<void> _addCounter(String title, int? target) async {
     final counter = Counter(
       id: DateTime.now().microsecondsSinceEpoch.toString(),
@@ -214,9 +240,7 @@ class _HomePageState extends State<HomePage> {
     showConfirmDeleteDialog(
       context,
       title: 'Delete counter',
-      message:
-          'Are you sure you want to delete "${counter.title}"? '
-          'This can\'t be undone.',
+      message: 'Are you sure you want to delete "${counter.title}"?',
       onConfirm: () => _deleteCounter(counter),
     );
   }
@@ -369,10 +393,7 @@ class _HomePageState extends State<HomePage> {
       ),
       floatingActionButton: FloatingActionButton(
         heroTag: 'home_page_fab',
-        onPressed: () => showCounterFormDialog(
-          context,
-          onSubmit: (title, target) => _addCounter(title, target),
-        ),
+        onPressed: _showAddOptions,
         tooltip: 'Add counter',
         child: const Icon(Icons.add),
       ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../services/counter_storage.dart';
 import '../services/firestore_counter_storage.dart';
@@ -26,6 +27,30 @@ class _MainShellState extends State<MainShell> {
       ? LocalCounterStorage()
       : FirestoreCounterStorage();
 
+  // One Navigator per tab, so pages pushed from within a tab (e.g. a
+  // counter's detail page) stay inside that tab's own stack instead of
+  // covering the whole Scaffold. Keeps the bottom NavigationBar on screen
+  // everywhere, so switching tabs is always a single tap away.
+  final _navigatorKeys = List.generate(4, (_) => GlobalKey<NavigatorState>());
+
+  void _selectTab(int index) {
+    if (index == _selectedIndex) {
+      // Tapping the already-selected tab again pops it back to its root.
+      _navigatorKeys[index].currentState?.popUntil((route) => route.isFirst);
+    } else {
+      setState(() => _selectedIndex = index);
+    }
+  }
+
+  void _handleBack() {
+    final navigator = _navigatorKeys[_selectedIndex].currentState;
+    if (navigator != null && navigator.canPop()) {
+      navigator.pop();
+    } else {
+      SystemNavigator.pop();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final pages = [
@@ -52,18 +77,33 @@ class _MainShellState extends State<MainShell> {
       HomePage(storage: _storage, active: _selectedIndex == 2),
       SettingsPage(isGuest: widget.isGuest, onSignIn: widget.onSignIn),
     ];
-    return Scaffold(
-      body: IndexedStack(index: _selectedIndex, children: pages),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _selectedIndex,
-        onDestinationSelected: (index) =>
-            setState(() => _selectedIndex = index),
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.emoji_events_outlined), label: 'Challenges'),
-          NavigationDestination(icon: Icon(Icons.groups), label: 'Groups'),
-          NavigationDestination(icon: TallyIcon(), label: 'Counters'),
-          NavigationDestination(icon: Icon(Icons.settings), label: 'Settings'),
-        ],
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) _handleBack();
+      },
+      child: Scaffold(
+        body: IndexedStack(
+          index: _selectedIndex,
+          children: [
+            for (var i = 0; i < pages.length; i++)
+              Navigator(
+                key: _navigatorKeys[i],
+                onDidRemovePage: (page) {},
+                pages: [MaterialPage(child: pages[i])],
+              ),
+          ],
+        ),
+        bottomNavigationBar: NavigationBar(
+          selectedIndex: _selectedIndex,
+          onDestinationSelected: _selectTab,
+          destinations: const [
+            NavigationDestination(icon: Icon(Icons.emoji_events_outlined), label: 'Challenges'),
+            NavigationDestination(icon: Icon(Icons.groups), label: 'Groups'),
+            NavigationDestination(icon: TallyIcon(), label: 'Counters'),
+            NavigationDestination(icon: Icon(Icons.settings), label: 'Settings'),
+          ],
+        ),
       ),
     );
   }

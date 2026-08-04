@@ -87,7 +87,7 @@ class _GroupsListPageState extends State<GroupsListPage> {
         title: 'Delete group',
         message:
             'Are you sure you want to delete "${group.name}"? '
-            'This removes it for everyone and cannot be undone.',
+            'This removes it for everyone in the group.',
         onConfirm: () => _groupService.deleteGroup(group.id),
       );
       return;
@@ -95,8 +95,8 @@ class _GroupsListPageState extends State<GroupsListPage> {
 
     final message = !isCreator
         ? 'Are you sure you want to leave "${group.name}"?'
-        : 'You\'re the only member left. Leaving will permanently delete '
-              '"${group.name}" for everyone. This can\'t be undone.';
+        : 'You\'re the only member left. Leaving will delete '
+              '"${group.name}".';
 
     showConfirmDeleteDialog(
       context,

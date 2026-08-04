@@ -65,6 +65,7 @@ class AppDialogActions extends StatelessWidget {
   final VoidCallback? onSecondary;
   final String primaryLabel;
   final VoidCallback? onPrimary;
+  final bool destructive;
 
   const AppDialogActions({
     super.key,
@@ -72,12 +73,19 @@ class AppDialogActions extends StatelessWidget {
     this.onSecondary,
     required this.primaryLabel,
     required this.onPrimary,
+    this.destructive = false,
   });
 
   @override
   Widget build(BuildContext context) {
     final primaryButton = FilledButton(
       onPressed: onPrimary,
+      style: destructive
+          ? FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Theme.of(context).colorScheme.onError,
+            )
+          : null,
       child: Text(primaryLabel),
     );
 

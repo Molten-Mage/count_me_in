@@ -122,10 +122,10 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
                   ),
                   const SizedBox(height: 24),
                   AppDialogActions(
-                    secondaryLabel: 'Share',
-                    onSecondary: shareCode,
-                    primaryLabel: 'Close',
-                    onPrimary: () => Navigator.of(context).pop(),
+                    secondaryLabel: 'Close',
+                    onSecondary: () => Navigator.of(context).pop(),
+                    primaryLabel: 'Share',
+                    onPrimary: shareCode,
                   ),
                 ],
               ),
@@ -236,10 +236,10 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
     final message = !isCreator
         ? 'Are you sure you want to leave "${group.name}"?'
         : isLastMember
-        ? 'You\'re the only member left. Leaving will permanently delete '
-              '"${group.name}" for everyone. This can\'t be undone.'
-        : 'You created this group. Leaving will hand off admin to another '
-              'member — the group and its members stay intact.';
+        ? 'You\'re the only member left. Leaving will delete '
+              '"${group.name}".'
+        : 'You created this group. Leaving will hand off ownership to '
+              'another member.';
 
     showConfirmDeleteDialog(
       context,
@@ -283,37 +283,64 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
           appBar: AppBar(
             title: Text(group.name),
             actions: [
-              if (group.createdBy == myUid)
-                IconButton(
-                  onPressed: () => _showEditGroupDialog(group, _currentTotal),
-                  icon: const Icon(Icons.edit_outlined),
-                  tooltip: 'Edit group',
-                ),
-              if (group.createdBy == myUid)
-                IconButton(
-                  onPressed: () => showConfirmDeleteDialog(
-                    context,
-                    title: 'Delete group',
-                    message:
-                        'Are you sure you want to delete "${group.name}"? '
-                        'This removes it for everyone and cannot be undone.',
-                    onConfirm: () {
-                      _groupService.deleteGroup(group.id);
-                      Navigator.of(context).pop();
-                    },
+              PopupMenuButton<VoidCallback>(
+                tooltip: 'More options',
+                onSelected: (action) => action(),
+                itemBuilder: (_) => [
+                  if (group.createdBy == myUid)
+                    PopupMenuItem<VoidCallback>(
+                      value: () =>
+                          _showEditGroupDialog(group, _currentTotal),
+                      child: const ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: Icon(Icons.edit_outlined),
+                        title: Text('Edit group'),
+                      ),
+                    ),
+                  PopupMenuItem<VoidCallback>(
+                    value: () => _showInviteCode(group),
+                    child: const ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(Icons.share),
+                      title: Text('Invite code'),
+                    ),
                   ),
-                  icon: const Icon(Icons.delete_outline),
-                  tooltip: 'Delete group',
-                ),
-              IconButton(
-                onPressed: () => _showInviteCode(group),
-                icon: const Icon(Icons.share),
-                tooltip: 'Invite code',
-              ),
-              IconButton(
-                onPressed: () => _confirmLeaveGroup(group),
-                icon: const Icon(Icons.logout),
-                tooltip: 'Leave group',
+                  PopupMenuItem<VoidCallback>(
+                    value: () => _confirmLeaveGroup(group),
+                    child: const ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(Icons.logout),
+                      title: Text('Leave group'),
+                    ),
+                  ),
+                  if (group.createdBy == myUid)
+                    PopupMenuItem<VoidCallback>(
+                      value: () => showConfirmDeleteDialog(
+                        context,
+                        title: 'Delete group',
+                        message:
+                            'Are you sure you want to delete "${group.name}"? '
+                            'This removes it for everyone in the group.',
+                        onConfirm: () {
+                          _groupService.deleteGroup(group.id);
+                          Navigator.of(context).pop();
+                        },
+                      ),
+                      child: ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: Icon(
+                          Icons.delete_outline,
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                        title: Text(
+                          'Delete group',
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.error,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ],
           ),

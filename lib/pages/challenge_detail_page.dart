@@ -219,10 +219,10 @@ class _ChallengeDetailPageState extends State<ChallengeDetailPage> {
                   ),
                   const SizedBox(height: 24),
                   AppDialogActions(
-                    secondaryLabel: 'Share',
-                    onSecondary: shareCode,
-                    primaryLabel: 'Close',
-                    onPrimary: () => Navigator.of(context).pop(),
+                    secondaryLabel: 'Close',
+                    onSecondary: () => Navigator.of(context).pop(),
+                    primaryLabel: 'Share',
+                    onPrimary: shareCode,
                   ),
                 ],
               ),
@@ -241,10 +241,10 @@ class _ChallengeDetailPageState extends State<ChallengeDetailPage> {
     final message = !isCreator
         ? 'Are you sure you want to leave "${challenge.name}"?'
         : isLastMember
-        ? 'You\'re the only member left. Leaving will permanently delete '
-              '"${challenge.name}" for everyone. This can\'t be undone.'
-        : 'You created this challenge. Leaving will hand it off to another '
-              'member — the challenge and its progress stay intact.';
+        ? 'You\'re the only member left. Leaving will delete '
+              '"${challenge.name}".'
+        : 'You created this challenge. Leaving will hand ownership off to '
+              'another member.';
 
     showConfirmDeleteDialog(
       context,
@@ -274,56 +274,85 @@ class _ChallengeDetailPageState extends State<ChallengeDetailPage> {
           appBar: AppBar(
             title: Text(challenge.name),
             actions: [
-              IconButton(
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) =>
-                        ChallengeParticipantsPage(challenge: challenge),
-                  ),
-                ),
-                icon: const Icon(Icons.info_outline),
-                tooltip: 'Challenge Info',
-              ),
-              if (isCreator)
-                IconButton(
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (context) => ChallengeFormPage(
-                        challengeService: _challengeService,
-                        existingChallenge: challenge,
+              PopupMenuButton<VoidCallback>(
+                tooltip: 'More options',
+                onSelected: (action) => action(),
+                itemBuilder: (_) => [
+                  PopupMenuItem<VoidCallback>(
+                    value: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            ChallengeParticipantsPage(challenge: challenge),
                       ),
                     ),
+                    child: const ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(Icons.info_outline),
+                      title: Text('Challenge info'),
+                    ),
                   ),
-                  icon: const Icon(Icons.edit_outlined),
-                  tooltip: 'Edit challenge',
-                ),
-              IconButton(
-                onPressed: () => _showInviteCode(challenge),
-                icon: const Icon(Icons.share),
-                tooltip: 'Invite code',
+                  if (isCreator)
+                    PopupMenuItem<VoidCallback>(
+                      value: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) => ChallengeFormPage(
+                            challengeService: _challengeService,
+                            existingChallenge: challenge,
+                          ),
+                        ),
+                      ),
+                      child: const ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: Icon(Icons.edit_outlined),
+                        title: Text('Edit challenge'),
+                      ),
+                    ),
+                  PopupMenuItem<VoidCallback>(
+                    value: () => _showInviteCode(challenge),
+                    child: const ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(Icons.share),
+                      title: Text('Invite code'),
+                    ),
+                  ),
+                  if (isMember)
+                    PopupMenuItem<VoidCallback>(
+                      value: () => _confirmLeaveChallenge(challenge),
+                      child: const ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: Icon(Icons.logout),
+                        title: Text('Leave challenge'),
+                      ),
+                    ),
+                  if (isCreator)
+                    PopupMenuItem<VoidCallback>(
+                      value: () => showConfirmDeleteDialog(
+                        context,
+                        title: 'Delete challenge',
+                        message:
+                            'Are you sure you want to delete "${challenge.name}"? '
+                            'This removes it for everyone.',
+                        onConfirm: () {
+                          _challengeService.deleteChallenge(challenge.id);
+                          Navigator.of(context).pop();
+                        },
+                      ),
+                      child: ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: Icon(
+                          Icons.delete_outline,
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                        title: Text(
+                          'Delete challenge',
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.error,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
               ),
-              if (isMember)
-                IconButton(
-                  onPressed: () => _confirmLeaveChallenge(challenge),
-                  icon: const Icon(Icons.logout),
-                  tooltip: 'Leave challenge',
-                ),
-              if (isCreator)
-                IconButton(
-                  onPressed: () => showConfirmDeleteDialog(
-                    context,
-                    title: 'Delete challenge',
-                    message:
-                        'Are you sure you want to delete "${challenge.name}"? '
-                        'This removes it for everyone and cannot be undone.',
-                    onConfirm: () {
-                      _challengeService.deleteChallenge(challenge.id);
-                      Navigator.of(context).pop();
-                    },
-                  ),
-                  icon: const Icon(Icons.delete_outline),
-                  tooltip: 'Delete challenge',
-                ),
             ],
           ),
           body: GestureDetector(

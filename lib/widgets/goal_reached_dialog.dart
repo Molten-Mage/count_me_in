@@ -126,10 +126,10 @@ class _GoalReachedDialogState extends State<_GoalReachedDialog> {
               const SizedBox(height: 24),
               if (!_settingNewGoal) ...[
                 AppDialogActions(
-                  secondaryLabel: 'New goal',
-                  onSecondary: () => setState(() => _settingNewGoal = true),
-                  primaryLabel: 'Keep going',
-                  onPrimary: () => Navigator.of(context).pop(),
+                  secondaryLabel: 'Continue',
+                  onSecondary: () => Navigator.of(context).pop(),
+                  primaryLabel: 'New goal',
+                  onPrimary: () => setState(() => _settingNewGoal = true),
                 ),
               ] else ...[
                 TextField(

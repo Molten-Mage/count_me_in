@@ -25,6 +25,7 @@ Future<void> showConfirmDeleteDialog(
               secondaryLabel: 'Cancel',
               onSecondary: () => Navigator.of(context).pop(),
               primaryLabel: confirmLabel,
+              destructive: true,
               onPrimary: () {
                 onConfirm();
                 Navigator.of(context).pop();

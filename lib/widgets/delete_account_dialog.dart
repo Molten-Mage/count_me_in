@@ -111,6 +111,7 @@ class _DeleteAccountDialogState extends State<_DeleteAccountDialog> {
                 ? null
                 : () => Navigator.of(context).pop(),
             primaryLabel: _isSubmitting ? 'Deleting…' : 'Delete',
+            destructive: true,
             onPrimary: (_isConfirmed && !_isSubmitting) ? _submit : null,
           ),
         ],
