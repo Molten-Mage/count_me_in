@@ -45,6 +45,7 @@ dependencies:
   sign_in_with_apple: ^8.1.0
   google_mobile_ads: ^9.0.0
   crypto: ^3.0.7
+  rxdart: ^0.28.0
 
 dev_dependencies:
   flutter_test:

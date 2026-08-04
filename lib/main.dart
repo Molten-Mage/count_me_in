@@ -11,6 +11,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'firebase_options.dart';
 import 'pages/auth_gate.dart';
 import 'services/theme_controller.dart';
+import 'widgets/ad_banner.dart';
 
 const _seedColor = Color(0xFF1B5E20);
 
@@ -61,6 +62,21 @@ class MyApp extends StatelessWidget {
           theme: _buildTheme(Brightness.light),
           darkTheme: _buildTheme(Brightness.dark),
           themeMode: themeMode,
+          // Pins the ad banner above every route the app ever shows —
+          // including pages pushed on top of MainShell — rather than just
+          // MainShell's own body, which pushed pages would otherwise cover
+          // completely since routes stack full-screen and opaque.
+          builder: (context, child) {
+            return SafeArea(
+              bottom: false,
+              child: Column(
+                children: [
+                  const AdBanner(),
+                  Expanded(child: child ?? const SizedBox.shrink()),
+                ],
+              ),
+            );
+          },
           home: const AuthGate(),
         );
       },

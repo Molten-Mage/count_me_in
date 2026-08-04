@@ -38,7 +38,14 @@ class _AdBannerState extends State<AdBanner> {
     if (kIsWeb || !(Platform.isAndroid || Platform.isIOS)) return;
 
     final width = MediaQuery.sizeOf(context).width.truncate();
-    final size = await AdSize.getLargeAnchoredAdaptiveBannerAdSize(width);
+    // The non-"large" adaptive size is deprecated in favor of the large
+    // one (Google's newer default, picked for better fill/revenue), but
+    // it's still fully functional — used deliberately here for a shorter
+    // banner instead.
+    // ignore: deprecated_member_use
+    final size = await AdSize.getCurrentOrientationAnchoredAdaptiveBannerAdSize(
+      width,
+    );
     if (size == null || !mounted) return;
 
     final ad = BannerAd(

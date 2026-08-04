@@ -2,6 +2,35 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+    // Challenge objective ids are always 'obj_0'..'obj_9' (assigned by
+    // index at creation, capped at maxChallengeObjectives in
+    // lib/models/challenge.dart) — enumerable, so per-value bounds can be
+    // checked without a loop (Firestore rules has no loop construct).
+    function challengeObjectiveIds() {
+      return ['obj_0', 'obj_1', 'obj_2', 'obj_3', 'obj_4', 'obj_5', 'obj_6', 'obj_7', 'obj_8', 'obj_9'];
+    }
+
+    function challengeTallyValueValid(tallies, key) {
+      return !(key in tallies)
+        || (tallies[key] is int && tallies[key] >= 0 && tallies[key] <= 999999);
+    }
+
+    // Every key must be a known objective id, and every present value must
+    // be a non-negative int within a sane bound.
+    function challengeTalliesValid(tallies) {
+      return tallies.keys().hasOnly(challengeObjectiveIds())
+        && challengeTallyValueValid(tallies, 'obj_0')
+        && challengeTallyValueValid(tallies, 'obj_1')
+        && challengeTallyValueValid(tallies, 'obj_2')
+        && challengeTallyValueValid(tallies, 'obj_3')
+        && challengeTallyValueValid(tallies, 'obj_4')
+        && challengeTallyValueValid(tallies, 'obj_5')
+        && challengeTallyValueValid(tallies, 'obj_6')
+        && challengeTallyValueValid(tallies, 'obj_7')
+        && challengeTallyValueValid(tallies, 'obj_8')
+        && challengeTallyValueValid(tallies, 'obj_9');
+    }
+
     match /users/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
@@ -100,6 +129,85 @@ service cloud.firestore {
             request.auth.uid == memberId
             || request.auth.uid
               == get(/databases/$(database)/documents/groups/$(groupId)).data.createdBy
+          );
+      }
+    }
+
+    match /challenges/{challengeId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+        && request.auth.uid == request.resource.data.createdBy
+        && request.resource.data.memberIds == [request.auth.uid]
+        && request.resource.data.objectives.size() >= 1
+        && request.resource.data.objectives.size() <= 10;
+      // Same join/leave/ownership-handoff shape as groups; challenges have
+      // no admin-controlled variant, so there's no name-edit clause. The
+      // creator can adjust objective targets (count stays within bounds;
+      // name/id integrity for individual objectives isn't validated
+      // server-side, same light-touch level as other non-tally fields).
+      allow update: if request.auth != null
+        && (
+          (
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberIds'])
+            && request.resource.data.memberIds.removeAll([request.auth.uid])
+              == resource.data.memberIds
+          )
+          || (
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberIds'])
+            && resource.data.memberIds.removeAll([request.auth.uid])
+              == request.resource.data.memberIds
+          )
+          || (
+            request.auth.uid == resource.data.createdBy
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberIds', 'createdBy'])
+            && resource.data.memberIds.removeAll([request.auth.uid])
+              == request.resource.data.memberIds
+            && request.resource.data.createdBy in request.resource.data.memberIds
+          )
+          || (
+            request.auth.uid == resource.data.createdBy
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['objectives'])
+            && request.resource.data.objectives.size() >= 1
+            && request.resource.data.objectives.size() <= 10
+          )
+        );
+      allow delete: if request.auth != null
+        && request.auth.uid == resource.data.createdBy;
+
+      match /participants/{uid} {
+        allow read: if request.auth != null;
+
+        allow create: if request.auth != null
+          && request.auth.uid == uid
+          && request.resource.data.keys().hasOnly(['displayName', 'tallies', 'joinedAt'])
+          && request.resource.data.displayName is string
+          && request.resource.data.tallies == {}
+          && request.resource.data.joinedAt is timestamp;
+
+        // Self-service only (no admin-controlled variant), only `tallies`
+        // (bounded) and `completedAt` (set/cleared alongside it, as the
+        // client crosses/un-crosses "every targeted objective reached")
+        // may change, and no more updates once the challenge's deadline
+        // (if any) has passed.
+        allow update: if request.auth != null
+          && request.auth.uid == uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['tallies', 'completedAt'])
+          && challengeTalliesValid(request.resource.data.tallies)
+          && (
+            !('completedAt' in request.resource.data)
+            || request.resource.data.completedAt == null
+            || request.resource.data.completedAt is timestamp
+          )
+          && (
+            get(/databases/$(database)/documents/challenges/$(challengeId)).data.endsAt == null
+            || request.time < get(/databases/$(database)/documents/challenges/$(challengeId)).data.endsAt
+          );
+
+        allow delete: if request.auth != null
+          && (
+            request.auth.uid == uid
+            || request.auth.uid
+              == get(/databases/$(database)/documents/challenges/$(challengeId)).data.createdBy
           );
       }
     }

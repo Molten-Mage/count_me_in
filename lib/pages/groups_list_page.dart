@@ -307,7 +307,17 @@ class _GroupsListPageState extends State<GroupsListPage> {
                       );
                     },
                   ),
-                  trailing: Text(group.code),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(group.code),
+                      const SizedBox(width: 4),
+                      Icon(
+                        Icons.chevron_right,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ],
+                  ),
                   onTap: () {
                     Navigator.of(context).push(
                       MaterialPageRoute(

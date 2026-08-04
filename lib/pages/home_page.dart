@@ -336,6 +336,11 @@ class _HomePageState extends State<HomePage> {
                                       ? '${counter.count}'
                                       : '${counter.count} / ${counter.target}',
                                 ),
+                                const SizedBox(width: 4),
+                                Icon(
+                                  Icons.chevron_right,
+                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                ),
                               ],
                             ),
                             const SizedBox(height: 8),

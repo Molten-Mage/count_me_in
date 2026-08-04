@@ -1,8 +1,12 @@
+import 'dart:math';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../data/challenge_templates.dart';
+import '../services/challenge_service.dart';
 import '../services/theme_controller.dart';
 import '../widgets/change_password_dialog.dart';
 import '../widgets/confirm_delete_dialog.dart';
@@ -240,6 +244,7 @@ class SettingsPage extends StatelessWidget {
               subtitle: 'Dart exception — readable without dSYM',
               onConfirm: () => throw Exception('Crashlytics Dart test crash'),
             ),
+            const _GenerateChallengeTile(),
           ],
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 16),
@@ -315,6 +320,67 @@ class _ForceCrashTile extends StatelessWidget {
         confirmLabel: 'Crash now',
         onConfirm: onConfirm,
       ),
+    );
+  }
+}
+
+// Admin ops tool: generates one random official public challenge per tap,
+// drawn from lib/data/challenge_templates.dart. Not tied to a fixed set —
+// safe to tap repeatedly to build up Explore's pool of official content
+// over time. The generating account is never left as a member of what it
+// creates (see ChallengeService.createOfficialChallenge).
+class _GenerateChallengeTile extends StatelessWidget {
+  const _GenerateChallengeTile();
+
+  Future<void> _generate(BuildContext context) async {
+    final random = Random();
+    final category = challengeCategories[random.nextInt(challengeCategories.length)];
+    final name = category.flavorNames[random.nextInt(category.flavorNames.length)];
+    final objectiveCount = min(1 + random.nextInt(4), category.objectives.length);
+    final chosen = (List.of(category.objectives)..shuffle(random)).take(objectiveCount);
+    final durationDays = challengeDurationDaysOptions[random.nextInt(
+      challengeDurationDaysOptions.length,
+    )];
+
+    try {
+      final challenge = await ChallengeService().createOfficialChallenge(
+        name: name,
+        description: category.description,
+        endsAt: DateTime.now().add(Duration(days: durationDays)),
+        objectives: [
+          for (final o in chosen)
+            (
+              name: o.name,
+              target: o.minTarget + random.nextInt(o.maxTarget - o.minTarget + 1),
+            ),
+        ],
+      );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Generated "${challenge.name}" (${category.name}, '
+              '${chosen.length} objectives, $durationDays days).',
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to generate challenge: $e')));
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      leading: const Icon(Icons.auto_awesome_outlined),
+      title: const Text('Generate official challenge'),
+      subtitle: const Text('Creates one random public challenge from the template library'),
+      onTap: () => _generate(context),
     );
   }
 }
