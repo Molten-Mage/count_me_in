@@ -5,9 +5,11 @@ import 'package:flutter/services.dart';
 
 import '../models/counter.dart';
 import '../services/counter_storage.dart';
+import '../services/premium_service.dart';
 import '../widgets/confirm_delete_dialog.dart';
 import '../widgets/counter_form_dialog.dart';
 import '../widgets/goal_reached_dialog.dart';
+import '../widgets/paywall_dialog.dart';
 import '../widgets/tally_stepper.dart';
 import 'counter_detail_page.dart';
 
@@ -23,6 +25,7 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   late final CounterStorage _storage = widget.storage;
+  final _premiumService = PremiumService();
   final Map<String, TextEditingController> _stepControllers = {};
   final Map<String, FocusNode> _stepFocusNodes = {};
   List<Counter> _counters = [];
@@ -91,7 +94,7 @@ class _HomePageState extends State<HomePage> {
   Future<void> _showAddOptions() async {
     await showModalBottomSheet<void>(
       context: context,
-      builder: (context) {
+      builder: (sheetContext) {
         return SafeArea(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -99,8 +102,16 @@ class _HomePageState extends State<HomePage> {
               ListTile(
                 leading: const Icon(Icons.add),
                 title: const Text('Add a counter'),
-                onTap: () {
-                  Navigator.of(context).pop();
+                onTap: () async {
+                  Navigator.of(sheetContext).pop();
+                  final canAdd = await _premiumService.canAddOne(
+                    counterCount: _counters.length,
+                  );
+                  if (!mounted) return;
+                  if (!canAdd) {
+                    showPaywallDialog(context);
+                    return;
+                  }
                   showCounterFormDialog(
                     context,
                     onSubmit: (title, target) => _addCounter(title, target),

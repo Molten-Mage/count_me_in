@@ -7,10 +7,12 @@ import 'package:flutter/material.dart';
 
 import '../data/challenge_templates.dart';
 import '../services/challenge_service.dart';
+import '../services/premium_service.dart';
 import '../services/theme_controller.dart';
 import '../widgets/change_password_dialog.dart';
 import '../widgets/confirm_delete_dialog.dart';
 import '../widgets/delete_account_dialog.dart';
+import '../widgets/premium_upsell_dialog.dart';
 import 'privacy_policy_page.dart';
 
 class SettingsPage extends StatelessWidget {
@@ -34,6 +36,72 @@ class SettingsPage extends StatelessWidget {
       default:
         return providerId;
     }
+  }
+
+  Widget _buildPremiumSection(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: ValueListenableBuilder<bool>(
+        valueListenable: premiumStatus,
+        builder: (context, isPremium, _) {
+          return Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.workspace_premium_outlined,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        isPremium ? 'Premium' : 'Basic',
+                        style: Theme.of(
+                          context,
+                        ).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Premium unlocks unlimited counters, groups, and '
+                    'challenges, and removes ads.',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  if (!isPremium) ...[
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton(
+                        onPressed: () => showPremiumUpsellDialog(context),
+                        child: const Text('Get Premium'),
+                      ),
+                    ),
+                  ],
+                  if (isPremium && kDebugMode) ...[
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton(
+                        onPressed: () => premiumStatus.setPremium(false),
+                        child: const Text('Debug: downgrade to Basic'),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
   }
 
   Widget _buildThemeSection(BuildContext context) {
@@ -193,7 +261,9 @@ class SettingsPage extends StatelessWidget {
               style: Theme.of(context).textTheme.titleMedium,
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
+          _buildPremiumSection(context),
+          const SizedBox(height: 8),
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 16),
             child: Divider(),

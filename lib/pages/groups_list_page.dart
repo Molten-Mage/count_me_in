@@ -5,9 +5,11 @@ import 'package:flutter/services.dart';
 import '../models/group.dart';
 import '../models/group_member.dart';
 import '../services/group_service.dart';
+import '../services/premium_service.dart';
 import '../widgets/app_dialog.dart';
 import '../widgets/confirm_delete_dialog.dart';
 import '../widgets/error_dialog.dart';
+import '../widgets/paywall_dialog.dart';
 import 'group_detail_page.dart';
 
 class GroupsListPage extends StatefulWidget {
@@ -21,6 +23,7 @@ class GroupsListPage extends StatefulWidget {
 
 class _GroupsListPageState extends State<GroupsListPage> {
   final _groupService = GroupService();
+  final _premiumService = PremiumService();
   List<String> _groupOrder = [];
   bool _editMode = false;
 
@@ -181,7 +184,7 @@ class _GroupsListPageState extends State<GroupsListPage> {
   Future<void> _showAddOptions() async {
     await showModalBottomSheet<void>(
       context: context,
-      builder: (context) {
+      builder: (sheetContext) {
         return SafeArea(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -189,16 +192,28 @@ class _GroupsListPageState extends State<GroupsListPage> {
               ListTile(
                 leading: const Icon(Icons.add),
                 title: const Text('Create a group'),
-                onTap: () {
-                  Navigator.of(context).pop();
+                onTap: () async {
+                  Navigator.of(sheetContext).pop();
+                  final canAdd = await _premiumService.canAddOne();
+                  if (!mounted) return;
+                  if (!canAdd) {
+                    showPaywallDialog(context);
+                    return;
+                  }
                   _showCreateGroupDialog();
                 },
               ),
               ListTile(
                 leading: const Icon(Icons.group_add),
                 title: const Text('Join a group'),
-                onTap: () {
-                  Navigator.of(context).pop();
+                onTap: () async {
+                  Navigator.of(sheetContext).pop();
+                  final canAdd = await _premiumService.canAddOne();
+                  if (!mounted) return;
+                  if (!canAdd) {
+                    showPaywallDialog(context);
+                    return;
+                  }
                   _showJoinGroupDialog();
                 },
               ),

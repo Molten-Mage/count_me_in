@@ -10,6 +10,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 
 import 'firebase_options.dart';
 import 'pages/auth_gate.dart';
+import 'services/premium_service.dart';
 import 'services/theme_controller.dart';
 import 'widgets/ad_banner.dart';
 
@@ -30,6 +31,7 @@ void main() async {
   }
 
   await themeController.load();
+  await premiumStatus.load();
   try {
     await GoogleSignIn.instance.initialize();
   } catch (_) {

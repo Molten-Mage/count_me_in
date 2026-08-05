@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
+import '../services/premium_service.dart';
+
 // Test banner ad unit IDs (developers.google.com/admob/{android,ios}/test-ads).
 // Replace with real ad unit IDs from the AdMob console before release.
 String get _bannerAdUnitId {
@@ -12,8 +14,8 @@ String get _bannerAdUnitId {
 }
 
 /// A top-anchored adaptive banner ad, sized to the available width. Renders
-/// nothing while loading, on unsupported platforms, or if the ad fails to
-/// load, so it never leaves a visible gap.
+/// nothing while loading, on unsupported platforms, if the ad fails to
+/// load, or for premium accounts, so it never leaves a visible gap.
 class AdBanner extends StatefulWidget {
   const AdBanner({super.key});
 
@@ -26,12 +28,31 @@ class _AdBannerState extends State<AdBanner> {
   bool _hasRequestedAd = false;
 
   @override
+  void initState() {
+    super.initState();
+    // Debug-only premium status can flip at runtime (Settings' downgrade
+    // button); react immediately instead of waiting on an unrelated
+    // rebuild. In release builds this never fires since the flag never
+    // changes.
+    premiumStatus.addListener(_onPremiumChanged);
+  }
+
+  void _onPremiumChanged() {
+    if (!mounted) return;
+    _maybeLoadAd();
+    setState(() {});
+  }
+
+  void _maybeLoadAd() {
+    if (_hasRequestedAd || premiumStatus.value) return;
+    _hasRequestedAd = true;
+    _loadAd();
+  }
+
+  @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (!_hasRequestedAd) {
-      _hasRequestedAd = true;
-      _loadAd();
-    }
+    _maybeLoadAd();
   }
 
   Future<void> _loadAd() async {
@@ -64,12 +85,14 @@ class _AdBannerState extends State<AdBanner> {
 
   @override
   void dispose() {
+    premiumStatus.removeListener(_onPremiumChanged);
     _bannerAd?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    if (premiumStatus.value) return const SizedBox.shrink();
     final ad = _bannerAd;
     if (ad == null) return const SizedBox.shrink();
     return SizedBox(

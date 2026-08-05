@@ -4,9 +4,11 @@ import 'package:flutter/material.dart';
 import '../models/challenge.dart';
 import '../models/challenge_participant.dart';
 import '../services/challenge_service.dart';
+import '../services/premium_service.dart';
 import '../widgets/app_dialog.dart';
 import '../widgets/challenge_emblem.dart';
 import '../widgets/error_dialog.dart';
+import '../widgets/paywall_dialog.dart';
 import 'challenge_detail_page.dart';
 import 'challenge_form_page.dart';
 
@@ -74,6 +76,7 @@ class ChallengesListPage extends StatefulWidget {
 class _ChallengesListPageState extends State<ChallengesListPage>
     with SingleTickerProviderStateMixin {
   final _challengeService = ChallengeService();
+  final _premiumService = PremiumService();
   late final _tabController = TabController(length: 3, vsync: this);
 
   @override
@@ -85,7 +88,7 @@ class _ChallengesListPageState extends State<ChallengesListPage>
   Future<void> _showAddOptions() async {
     await showModalBottomSheet<void>(
       context: context,
-      builder: (context) {
+      builder: (sheetContext) {
         return SafeArea(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -93,8 +96,14 @@ class _ChallengesListPageState extends State<ChallengesListPage>
               ListTile(
                 leading: const Icon(Icons.add),
                 title: const Text('Create a challenge'),
-                onTap: () {
-                  Navigator.of(context).pop();
+                onTap: () async {
+                  Navigator.of(sheetContext).pop();
+                  final canAdd = await _premiumService.canAddOne();
+                  if (!mounted) return;
+                  if (!canAdd) {
+                    showPaywallDialog(context);
+                    return;
+                  }
                   Navigator.of(context).push(
                     MaterialPageRoute(
                       builder: (context) =>
@@ -106,8 +115,14 @@ class _ChallengesListPageState extends State<ChallengesListPage>
               ListTile(
                 leading: const Icon(Icons.groups_outlined),
                 title: const Text('Join with a code'),
-                onTap: () {
-                  Navigator.of(context).pop();
+                onTap: () async {
+                  Navigator.of(sheetContext).pop();
+                  final canAdd = await _premiumService.canAddOne();
+                  if (!mounted) return;
+                  if (!canAdd) {
+                    showPaywallDialog(context);
+                    return;
+                  }
                   _showJoinDialog();
                 },
               ),
