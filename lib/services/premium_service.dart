@@ -47,9 +47,20 @@ class PremiumService {
   // for currency/locale).
   static const priceLabel = r'$4.99';
 
-  final _groupService = GroupService();
-  final _challengeService = ChallengeService();
-  final _counterStorage = FirestoreCounterStorage();
+  PremiumService({
+    GroupService? groupService,
+    ChallengeService? challengeService,
+    FirestoreCounterStorage? counterStorage,
+    FirebaseAuth? auth,
+  }) : _groupService = groupService ?? GroupService(),
+       _challengeService = challengeService ?? ChallengeService(),
+       _counterStorage = counterStorage ?? FirestoreCounterStorage(),
+       _auth = auth ?? FirebaseAuth.instance;
+
+  final GroupService _groupService;
+  final ChallengeService _challengeService;
+  final FirestoreCounterStorage _counterStorage;
+  final FirebaseAuth _auth;
 
   bool get isPremium => premiumStatus.value;
 
@@ -65,7 +76,7 @@ class PremiumService {
     final counters =
         counterCount ?? (await _counterStorage.loadCounters()).length;
 
-    if (FirebaseAuth.instance.currentUser == null) return counters;
+    if (_auth.currentUser == null) return counters;
 
     final groups = await _groupService.streamMyGroups().first;
     final challenges = await _challengeService

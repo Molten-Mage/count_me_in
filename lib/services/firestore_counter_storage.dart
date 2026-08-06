@@ -5,14 +5,21 @@ import '../models/counter.dart';
 import 'counter_storage.dart';
 
 class FirestoreCounterStorage implements CounterStorage {
+  FirestoreCounterStorage({FirebaseFirestore? firestore, FirebaseAuth? auth})
+    : _firestore = firestore ?? FirebaseFirestore.instance,
+      _auth = auth ?? FirebaseAuth.instance;
+
+  final FirebaseFirestore _firestore;
+  final FirebaseAuth _auth;
+
   String get _uid {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final uid = _auth.currentUser?.uid;
     if (uid == null) throw StateError('No signed-in user.');
     return uid;
   }
 
   DocumentReference<Map<String, dynamic>> get _doc =>
-      FirebaseFirestore.instance.collection('users').doc(_uid);
+      _firestore.collection('users').doc(_uid);
 
   @override
   Future<List<Counter>> loadCounters() async {

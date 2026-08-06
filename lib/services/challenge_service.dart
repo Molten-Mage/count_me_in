@@ -11,16 +11,21 @@ import 'analytics_service.dart';
 typedef ChallengeWithParticipation = ({Challenge challenge, ChallengeParticipant? me});
 
 class ChallengeService {
-  final _firestore = FirebaseFirestore.instance;
+  ChallengeService({FirebaseFirestore? firestore, FirebaseAuth? auth})
+    : _firestore = firestore ?? FirebaseFirestore.instance,
+      _auth = auth ?? FirebaseAuth.instance;
+
+  final FirebaseFirestore _firestore;
+  final FirebaseAuth _auth;
 
   String get _uid {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final uid = _auth.currentUser?.uid;
     if (uid == null) throw StateError('No signed-in user.');
     return uid;
   }
 
   String get _displayName {
-    final user = FirebaseAuth.instance.currentUser;
+    final user = _auth.currentUser;
     final name = user?.displayName;
     if (name != null && name.trim().isNotEmpty) return name;
     final email = user?.email;

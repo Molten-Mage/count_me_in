@@ -59,6 +59,9 @@ dev_dependencies:
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
   flutter_launcher_icons: ^0.14.4
+  fake_cloud_firestore: ^4.2.0
+  firebase_auth_mocks: ^0.15.2
+  firebase_core_platform_interface: ^8.1.0
 
 flutter_launcher_icons:
   image_path: "assets/icon/icon.png"
