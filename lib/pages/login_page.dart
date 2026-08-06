@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
+import '../services/analytics_service.dart';
 import '../widgets/tally_icon.dart';
 import 'privacy_policy_page.dart';
 
@@ -104,6 +105,7 @@ class _LoginPageState extends State<LoginPage> {
           password: _passwordController.text,
         );
       }
+      await analyticsService.logLogin('password');
     } on FirebaseAuthException catch (e) {
       setState(() => _errorMessage = e.message ?? 'Something went wrong.');
     } finally {
@@ -150,6 +152,7 @@ class _LoginPageState extends State<LoginPage> {
       final idToken = account.authentication.idToken;
       final credential = GoogleAuthProvider.credential(idToken: idToken);
       await FirebaseAuth.instance.signInWithCredential(credential);
+      await analyticsService.logLogin('google.com');
     } on GoogleSignInException catch (e) {
       if (e.code != GoogleSignInExceptionCode.canceled) {
         setState(() => _errorMessage = 'Google sign-in failed. Try again.');
@@ -206,6 +209,7 @@ class _LoginPageState extends State<LoginPage> {
           await userCredential.user?.updateDisplayName(name);
         }
       }
+      await analyticsService.logLogin('apple.com');
     } on SignInWithAppleAuthorizationException catch (e) {
       if (e.code != AuthorizationErrorCode.canceled) {
         setState(() => _errorMessage = 'Apple sign-in failed. Try again.');

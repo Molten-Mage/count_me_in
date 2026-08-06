@@ -12,7 +12,7 @@
 
 **Worth fixing before real users touch it**
 - [ ] Monitor Crashlytics once live and check whether iOS dSYM upload is actually needed — reporting itself works (Dart-level errors and native crashes both show up), but iOS native crashes won't be symbolicated without the dSYM upload build phase, which we backed out after it repeatedly broke the Xcode build (see git history around the Crashlytics setup). Revisit only if real native crashes show up unsymbolicated in practice
-- [ ] Add telemetry/analytics (e.g. Firebase Analytics) so we can see how people actually use the app — which features get touched, drop-off points, etc. Currently flying blind on usage, only have crash data
+- [x] Add telemetry/analytics (Firebase Analytics) — `AnalyticsService` (`lib/services/analytics_service.dart`) covers: goal-reached Continue vs New goal (counter + group), counter/group/challenge create/join/delete/leave, theme mode changes, the premium prompt's Upgrade vs Not now (tagged by source: settings vs free-limit popup), and login provider on sign-in. Could still expand to screen views / drop-off funnels beyond these discrete events
 - [ ] Expand automated test coverage beyond the default counter smoke test in `test/widget_test.dart`
 - [ ] Fix auth email deliverability to iCloud — confirmed an iCloud recipient never got a password-reset email (not spam-foldered, account/email confirmed correct in Firebase Console) while Gmail worked fine. Firebase Auth's default sender (`noreply@<project>.firebaseapp.com`, shared Google IPs) has a known reputation problem with iCloud Mail's filtering. Real fix needs a custom sending domain configured in Firebase Console (Authentication → Templates) with proper SPF/DKIM/DMARC — requires owning a domain first
 

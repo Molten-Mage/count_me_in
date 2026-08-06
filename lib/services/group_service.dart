@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import '../models/group.dart';
 import '../models/group_member.dart';
+import 'analytics_service.dart';
 
 class GroupService {
   final _firestore = FirebaseFirestore.instance;
@@ -132,6 +133,7 @@ class GroupService {
       ).toFirestore(),
     );
     await batch.commit();
+    await analyticsService.logGroupCreated();
     return group;
   }
 
@@ -160,6 +162,7 @@ class GroupService {
         ).toFirestore(),
       );
       await batch.commit();
+      await analyticsService.logGroupJoined();
     }
     return group;
   }
@@ -182,6 +185,7 @@ class GroupService {
   /// the longest-standing remaining member, or the whole group is deleted
   /// if no other members remain.
   Future<void> leaveGroup(String groupId) async {
+    await analyticsService.logGroupLeft();
     final groupRef = _groups.doc(groupId);
     final groupSnapshot = await groupRef.get();
     final groupData = groupSnapshot.data();
@@ -230,6 +234,7 @@ class GroupService {
     }
     batch.delete(groupRef);
     await batch.commit();
+    await analyticsService.logGroupDeleted();
   }
 
   /// Increments [uid]'s tally within the group. Firestore rules enforce who

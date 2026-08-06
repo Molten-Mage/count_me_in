@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../data/challenge_templates.dart';
+import '../services/analytics_service.dart';
 import '../services/challenge_service.dart';
 import '../services/premium_service.dart';
 import '../services/theme_controller.dart';
@@ -80,7 +81,10 @@ class SettingsPage extends StatelessWidget {
                     SizedBox(
                       width: double.infinity,
                       child: FilledButton(
-                        onPressed: () => showPremiumUpsellDialog(context),
+                        onPressed: () => showPremiumUpsellDialog(
+                          context,
+                          source: 'settings',
+                        ),
                         child: const Text('Get Premium'),
                       ),
                     ),
@@ -335,7 +339,10 @@ class SettingsPage extends StatelessWidget {
               title: 'Sign out',
               message: 'Are you sure you want to sign out?',
               confirmLabel: 'Sign out',
-              onConfirm: () => FirebaseAuth.instance.signOut(),
+              onConfirm: () {
+                analyticsService.logSignOut();
+                FirebaseAuth.instance.signOut();
+              },
             ),
           ),
           ListTile(

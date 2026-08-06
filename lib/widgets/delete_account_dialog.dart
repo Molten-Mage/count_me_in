@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../services/analytics_service.dart';
 import '../services/group_service.dart';
 import 'app_dialog.dart';
 
@@ -54,6 +55,7 @@ class _DeleteAccountDialogState extends State<_DeleteAccountDialog> {
           .doc(user.uid)
           .delete();
       await user.delete();
+      await analyticsService.logAccountDeleted();
       if (mounted) Navigator.of(context).pop();
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;

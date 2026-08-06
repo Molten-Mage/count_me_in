@@ -258,6 +258,7 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
       if (!mounted) return;
       showGoalReachedDialog(
         context,
+        source: 'group',
         message: '"${group.name}" hit $total! Great teamwork.',
         badgeValue: target,
         badgeColorIndex: 0,

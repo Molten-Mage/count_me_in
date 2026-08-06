@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
 
+import '../services/analytics_service.dart';
 import 'app_dialog.dart';
 import 'badge_icon.dart';
 import 'confetti_overlay.dart';
 
 /// Shows a celebratory popup for a newly reached goal, with a confetti
 /// burst, and lets the user immediately set a new target. Used for both
-/// personal counters and group goals.
+/// personal counters and group goals — [source] ('counter' or 'group')
+/// tags which, for analytics.
 Future<void> showGoalReachedDialog(
   BuildContext context, {
+  required String source,
   required String message,
   required int badgeValue,
   required int badgeColorIndex,
@@ -23,6 +26,7 @@ Future<void> showGoalReachedDialog(
     transitionDuration: const Duration(milliseconds: 250),
     pageBuilder: (context, animation, secondaryAnimation) {
       return _GoalReachedDialog(
+        source: source,
         message: message,
         badgeValue: badgeValue,
         badgeColorIndex: badgeColorIndex,
@@ -41,6 +45,7 @@ Future<void> showGoalReachedDialog(
 }
 
 class _GoalReachedDialog extends StatefulWidget {
+  final String source;
   final String message;
   final int badgeValue;
   final int badgeColorIndex;
@@ -48,6 +53,7 @@ class _GoalReachedDialog extends StatefulWidget {
   final void Function(int newTarget) onSetNewGoal;
 
   const _GoalReachedDialog({
+    required this.source,
     required this.message,
     required this.badgeValue,
     required this.badgeColorIndex,
@@ -127,9 +133,21 @@ class _GoalReachedDialogState extends State<_GoalReachedDialog> {
               if (!_settingNewGoal) ...[
                 AppDialogActions(
                   secondaryLabel: 'Continue',
-                  onSecondary: () => Navigator.of(context).pop(),
+                  onSecondary: () {
+                    analyticsService.logGoalReachedAction(
+                      source: widget.source,
+                      startedNewGoal: false,
+                    );
+                    Navigator.of(context).pop();
+                  },
                   primaryLabel: 'New goal',
-                  onPrimary: () => setState(() => _settingNewGoal = true),
+                  onPrimary: () {
+                    analyticsService.logGoalReachedAction(
+                      source: widget.source,
+                      startedNewGoal: true,
+                    );
+                    setState(() => _settingNewGoal = true);
+                  },
                 ),
               ] else ...[
                 TextField(

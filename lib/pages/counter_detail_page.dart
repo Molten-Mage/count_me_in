@@ -62,6 +62,7 @@ class _CounterDetailPageState extends State<CounterDetailPage> {
     if (newlyEarnedBadge != null) {
       showGoalReachedDialog(
         context,
+        source: 'counter',
         message:
             '"${_counter.title}" hit ${newlyEarnedBadge.value}. Badge earned!',
         badgeValue: newlyEarnedBadge.value,

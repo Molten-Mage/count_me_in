@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'analytics_service.dart';
+
 const _prefsKey = 'theme_mode';
 
 /// App-wide theme mode, persisted on-device and shared between [MyApp]
@@ -21,6 +23,7 @@ class ThemeController extends ValueNotifier<ThemeMode> {
     value = mode;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_prefsKey, mode.name);
+    await analyticsService.logThemeChanged(mode.name);
   }
 }
 

@@ -29,7 +29,9 @@ Future<void> showPaywallDialog(BuildContext context) {
             primaryLabel: 'Get Premium',
             onPrimary: () {
               Navigator.of(dialogContext).pop();
-              if (context.mounted) showPremiumUpsellDialog(context);
+              if (context.mounted) {
+                showPremiumUpsellDialog(context, source: 'free_limit');
+              }
             },
           ),
         ],

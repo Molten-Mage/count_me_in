@@ -6,6 +6,7 @@ import 'package:rxdart/rxdart.dart';
 
 import '../models/challenge.dart';
 import '../models/challenge_participant.dart';
+import 'analytics_service.dart';
 
 typedef ChallengeWithParticipation = ({Challenge challenge, ChallengeParticipant? me});
 
@@ -186,6 +187,7 @@ class ChallengeService {
       ).toFirestore(),
     );
     await batch.commit();
+    await analyticsService.logChallengeCreated();
     return challenge;
   }
 
@@ -254,6 +256,7 @@ class ChallengeService {
       ).toFirestore(),
     );
     await batch.commit();
+    await analyticsService.logChallengeJoined();
   }
 
   Future<Challenge> joinChallengeByCode(String code) async {
@@ -330,6 +333,7 @@ class ChallengeService {
   /// whole challenge is deleted if no other members remain — same pattern
   /// as leaving a group.
   Future<void> leaveChallenge(String challengeId) async {
+    await analyticsService.logChallengeLeft();
     final ref = _challenges.doc(challengeId);
     final snapshot = await ref.get();
     final data = snapshot.data();
@@ -378,5 +382,6 @@ class ChallengeService {
     }
     batch.delete(ref);
     await batch.commit();
+    await analyticsService.logChallengeDeleted();
   }
 }

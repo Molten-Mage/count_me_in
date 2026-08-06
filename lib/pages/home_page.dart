@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../models/counter.dart';
+import '../services/analytics_service.dart';
 import '../services/counter_storage.dart';
 import '../services/premium_service.dart';
 import '../widgets/confirm_delete_dialog.dart';
@@ -134,6 +135,7 @@ class _HomePageState extends State<HomePage> {
     );
     setState(() => _counters = [..._counters, counter]);
     await _storage.saveCounters(_counters);
+    await analyticsService.logCounterCreated();
   }
 
   Future<void> _increment(
@@ -162,6 +164,7 @@ class _HomePageState extends State<HomePage> {
     if (celebrate && newlyEarnedBadge != null) {
       showGoalReachedDialog(
         context,
+        source: 'counter',
         message:
             '"${updated.title}" hit ${newlyEarnedBadge.value}. Badge earned!',
         badgeValue: newlyEarnedBadge.value,
@@ -197,6 +200,7 @@ class _HomePageState extends State<HomePage> {
     _stepControllers.remove(counter.id)?.dispose();
     _stepFocusNodes.remove(counter.id)?.dispose();
     await _storage.saveCounters(_counters);
+    await analyticsService.logCounterDeleted();
   }
 
   Future<void> _updateCounter(

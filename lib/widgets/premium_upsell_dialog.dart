@@ -1,13 +1,18 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../services/analytics_service.dart';
 import '../services/premium_service.dart';
 import 'app_dialog.dart';
 
 /// The actual sales pitch — positive framing, no mention of limits. Shown
 /// after tapping "Get Premium" on [showPaywallDialog], and directly from
 /// Settings' "Get Premium" button, which has no limit-hit context to show.
-Future<void> showPremiumUpsellDialog(BuildContext context) {
+/// [source] ('settings' or 'free_limit') tags which, for analytics.
+Future<void> showPremiumUpsellDialog(
+  BuildContext context, {
+  required String source,
+}) {
   return showDialog<void>(
     context: context,
     builder: (dialogContext) => AppDialog(
@@ -38,9 +43,19 @@ Future<void> showPremiumUpsellDialog(BuildContext context) {
           const SizedBox(height: 24),
           AppDialogActions(
             secondaryLabel: 'Not now',
-            onSecondary: () => Navigator.of(dialogContext).pop(),
+            onSecondary: () {
+              analyticsService.logPremiumPrompt(
+                source: source,
+                accepted: false,
+              );
+              Navigator.of(dialogContext).pop();
+            },
             primaryLabel: 'Upgrade — ${PremiumService.priceLabel}',
             onPrimary: () async {
+              analyticsService.logPremiumPrompt(
+                source: source,
+                accepted: true,
+              );
               Navigator.of(dialogContext).pop();
               if (kDebugMode) {
                 await premiumStatus.setPremium(true);
