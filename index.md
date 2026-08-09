@@ -1,3 +1,2 @@
-# Count Me In
-
 - [Privacy Policy](PRIVACY.md)
+- [Contact](mailto:contact.moltenmage@gmail.com)
