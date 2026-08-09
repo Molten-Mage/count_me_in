@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../services/app_navigation.dart';
 import '../services/counter_storage.dart';
 import '../services/firestore_counter_storage.dart';
 import '../services/local_counter_storage.dart';
@@ -21,8 +22,6 @@ class MainShell extends StatefulWidget {
 }
 
 class _MainShellState extends State<MainShell> {
-  int _selectedIndex = 2;
-
   late final CounterStorage _storage = widget.isGuest
       ? LocalCounterStorage()
       : FirestoreCounterStorage();
@@ -31,19 +30,41 @@ class _MainShellState extends State<MainShell> {
   // counter's detail page) stay inside that tab's own stack instead of
   // covering the whole Scaffold. Keeps the bottom NavigationBar on screen
   // everywhere, so switching tabs is always a single tap away.
-  final _navigatorKeys = List.generate(4, (_) => GlobalKey<NavigatorState>());
+  //
+  // Both the keys and the selected index live on the shared
+  // [appNavigation] singleton rather than as local state, so code outside
+  // the widget tree (currently just DeepLinkService, for auto-joining a
+  // group from an invite link) can switch tabs and push onto a specific
+  // tab's stack too.
+  int get _selectedIndex => appNavigation.selectedTab.value;
+
+  @override
+  void initState() {
+    super.initState();
+    appNavigation.selectedTab.addListener(_onSelectedTabChanged);
+  }
+
+  @override
+  void dispose() {
+    appNavigation.selectedTab.removeListener(_onSelectedTabChanged);
+    super.dispose();
+  }
+
+  void _onSelectedTabChanged() => setState(() {});
 
   void _selectTab(int index) {
     if (index == _selectedIndex) {
       // Tapping the already-selected tab again pops it back to its root.
-      _navigatorKeys[index].currentState?.popUntil((route) => route.isFirst);
+      appNavigation.tabNavigatorKeys[index].currentState?.popUntil(
+        (route) => route.isFirst,
+      );
     } else {
-      setState(() => _selectedIndex = index);
+      appNavigation.selectedTab.value = index;
     }
   }
 
   void _handleBack() {
-    final navigator = _navigatorKeys[_selectedIndex].currentState;
+    final navigator = appNavigation.tabNavigatorKeys[_selectedIndex].currentState;
     if (navigator != null && navigator.canPop()) {
       navigator.pop();
     } else {
@@ -88,7 +109,7 @@ class _MainShellState extends State<MainShell> {
           children: [
             for (var i = 0; i < pages.length; i++)
               Navigator(
-                key: _navigatorKeys[i],
+                key: appNavigation.tabNavigatorKeys[i],
                 onDidRemovePage: (page) {},
                 pages: [MaterialPage(child: pages[i])],
               ),

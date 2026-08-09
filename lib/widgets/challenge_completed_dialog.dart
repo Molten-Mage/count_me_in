@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../models/challenge.dart';
 import 'app_dialog.dart';
@@ -48,6 +49,7 @@ class _ChallengeCompletedDialogState extends State<_ChallengeCompletedDialog> {
   @override
   void initState() {
     super.initState();
+    HapticFeedback.heavyImpact();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _confettiKey.currentState?.play();
     });

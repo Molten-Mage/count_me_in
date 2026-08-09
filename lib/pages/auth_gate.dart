@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../services/deep_link_service.dart';
 import 'login_page.dart';
 import 'main_shell.dart';
 
@@ -32,6 +33,9 @@ class _AuthGateState extends State<AuthGate> {
           );
         }
         if (snapshot.hasData) {
+          WidgetsBinding.instance.addPostFrameCallback(
+            (_) => deepLinkService.retryPendingJoin(),
+          );
           return const MainShell();
         }
         return LoginPage(

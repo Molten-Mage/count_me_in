@@ -4,13 +4,14 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
+import '../services/consent_service.dart';
 import '../services/premium_service.dart';
 
-// Test banner ad unit IDs (developers.google.com/admob/{android,ios}/test-ads).
-// Replace with real ad unit IDs from the AdMob console before release.
+// Real ad units from the AdMob console (both platforms registered under
+// the same publisher, ca-app-pub-7276238684080299).
 String get _bannerAdUnitId {
-  if (Platform.isAndroid) return 'ca-app-pub-3940256099942544/9214589741';
-  return 'ca-app-pub-3940256099942544/2435281174'; // iOS
+  if (Platform.isAndroid) return 'ca-app-pub-7276238684080299/2221530698';
+  return 'ca-app-pub-7276238684080299/9635438129'; // iOS
 }
 
 /// A top-anchored adaptive banner ad, sized to the available width. Renders
@@ -58,6 +59,12 @@ class _AdBannerState extends State<AdBanner> {
   Future<void> _loadAd() async {
     if (kIsWeb || !(Platform.isAndroid || Platform.isIOS)) return;
 
+    // Gathers GDPR/UK (UMP) and iOS tracking (ATT) consent, and only then
+    // initializes the Mobile Ads SDK — must happen before the first ad is
+    // ever requested.
+    await consentService.ensureReady();
+    if (!mounted) return;
+
     final width = MediaQuery.sizeOf(context).width.truncate();
     // The non-"large" adaptive size is deprecated in favor of the large
     // one (Google's newer default, picked for better fill/revenue), but
@@ -77,7 +84,10 @@ class _AdBannerState extends State<AdBanner> {
         onAdLoaded: (ad) {
           if (mounted) setState(() => _bannerAd = ad as BannerAd);
         },
-        onAdFailedToLoad: (ad, error) => ad.dispose(),
+        onAdFailedToLoad: (ad, error) {
+          if (kDebugMode) debugPrint('AdBanner failed to load: $error');
+          ad.dispose();
+        },
       ),
     );
     await ad.load();

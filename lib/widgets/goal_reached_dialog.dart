@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../services/analytics_service.dart';
 import 'app_dialog.dart';
@@ -73,6 +74,7 @@ class _GoalReachedDialogState extends State<_GoalReachedDialog> {
   @override
   void initState() {
     super.initState();
+    HapticFeedback.heavyImpact();
     // Wait a frame so the confetti overlay has a size before it plays.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _confettiKey.currentState?.play();

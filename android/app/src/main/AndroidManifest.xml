@@ -3,12 +3,9 @@
         android:label="count_me_in"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
-        <!-- AdMob test App ID (developers.google.com/admob/android/test-ads).
-             Replace with your real App ID from the AdMob console before
-             release. -->
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
-            android:value="ca-app-pub-3940256099942544~3347511713"/>
+            android:value="ca-app-pub-7276238684080299~9530275158"/>
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -29,6 +26,18 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+            <!-- Custom-scheme deep links (e.g. countmein://join/group/ABC123)
+                 for invite links — see lib/services/deep_link_service.dart.
+                 Once there's a domain, this should be replaced/supplemented
+                 with real App Links (android:autoVerify="true" + hosting
+                 assetlinks.json) for the full experience, including a Play
+                 Store fallback. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="countmein"/>
             </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.

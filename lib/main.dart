@@ -1,15 +1,13 @@
-import 'dart:io';
-
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 import 'firebase_options.dart';
 import 'pages/auth_gate.dart';
+import 'services/deep_link_service.dart';
 import 'services/premium_service.dart';
 import 'services/theme_controller.dart';
 import 'widgets/ad_banner.dart';
@@ -39,14 +37,14 @@ void main() async {
     // don't block app startup if it fails to initialize.
   }
 
-  // Ads SDK only supports Android/iOS.
-  if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
-    try {
-      await MobileAds.instance.initialize();
-    } catch (_) {
-      // Don't block app startup if ad init fails (e.g. no network yet).
-    }
-  }
+  // Ad consent gathering + Mobile Ads SDK init now happens lazily, gated
+  // behind GDPR/ATT consent, the first time an AdBanner actually mounts
+  // (see ConsentService) — not unconditionally at startup.
+
+  // Not awaited — starts listening for incoming invite links in the
+  // background. If one arrives before auth resolves, it's queued and
+  // completed by AuthGate once the user is signed in.
+  deepLinkService.init();
 
   runApp(const MyApp());
 }

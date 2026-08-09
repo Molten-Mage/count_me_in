@@ -31,7 +31,10 @@ class TallyStepper extends StatelessWidget {
         IconButton.filledTonal(
           iconSize: iconSize,
           icon: const Icon(Icons.remove),
-          onPressed: onDecrement,
+          onPressed: () {
+            HapticFeedback.lightImpact();
+            onDecrement();
+          },
         ),
         SizedBox(
           width: iconSize + 20,
@@ -63,7 +66,10 @@ class TallyStepper extends StatelessWidget {
         IconButton.filledTonal(
           iconSize: iconSize,
           icon: const Icon(Icons.add),
-          onPressed: onIncrement,
+          onPressed: () {
+            HapticFeedback.lightImpact();
+            onIncrement();
+          },
         ),
       ],
     );

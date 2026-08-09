@@ -1,6 +1,6 @@
 # Privacy Policy for Count Me In
 
-**Last updated: July 30, 2026**
+**Last updated: August 6, 2026**
 
 Count Me In ("the app") is a personal goal and group tally tracker. This
 policy explains what data the app collects, how it's used, and who it's
@@ -8,11 +8,14 @@ shared with.
 
 ## Data we collect
 
-**If you use the app without an account (guest mode):** none of your data
-leaves your device. Your counters are stored locally only, using standard
-on-device storage, and are never sent to us or anyone else.
+**If you use the app without an account (guest mode):** your personal
+counters, targets, notes, and badges are stored locally only, using
+standard on-device storage, and are never sent to us or anyone else. This
+applies to your counter data specifically — guest mode does not exempt you
+from the app usage analytics and advertising data described below, which
+apply to every user of the app, account or not.
 
-**If you create an account:**
+**If you create an account, additionally:**
 
 - **Account info** — an email address and password (if you sign up with
   email), or your name and email as shared by Google or Apple (if you sign
@@ -26,15 +29,43 @@ on-device storage, and are never sent to us or anyone else.
   create, and any groups you create or join, including group names, invite
   codes, targets, member tallies, and badges earned.
 
-We don't collect analytics, advertising identifiers, location data, or any
-data beyond what's described above. The app has no ads and no third-party
-trackers.
+**For every user, account or guest:**
+
+- **Usage analytics** — we use Firebase Analytics to understand how the app
+  is used: which features get tapped (e.g. creating a counter, reaching a
+  goal, joining a group), general app-open/session activity, and basic
+  device/OS information. This is tied to an anonymous device identifier,
+  not your name or email, and never includes the actual content of your
+  counters or notes.
+- **Advertising data** — unless you're on the paid Premium tier (which
+  removes ads entirely), the app shows banner ads served by Google AdMob.
+  AdMob and its partners may use advertising identifiers (Apple's IDFA or
+  Android's advertising ID) and similar technologies to serve and measure
+  ads, and — only with your consent — to personalize them. See "Ad consent"
+  below for how that consent is collected and how to change it.
+
+## Ad consent
+
+Where required by law (the EEA, UK, and similar jurisdictions), the app
+shows a consent form — provided by Google's User Messaging Platform — the
+first time it would show you an ad, letting you choose whether ads can be
+personalized. On iOS, the app also asks for Apple's App Tracking
+Transparency permission before using identifiers that track you across
+other apps. Declining either doesn't stop the app from working — you'll
+just see non-personalized ads instead.
+
+If you're somewhere this choice applies to you, you can change it anytime
+from **Settings → Ad privacy options**.
 
 ## How we use your data
 
-Your data is used solely to provide the app's functionality: syncing your
-counters across your devices, and running shared group tallies and
-leaderboards for the groups you're part of.
+Your account and app data are used to provide the app's functionality:
+syncing your counters across your devices, and running shared group
+tallies and leaderboards for the groups you're part of. Usage analytics is
+used to understand which features people actually use so we can improve
+the app. Advertising data is used to serve and measure the ads that
+support the free tier, and — only with consent where required — to
+personalize them.
 
 ## Who your data is shared with
 
@@ -42,15 +73,18 @@ leaderboards for the groups you're part of.
   tally within that group are visible to other people using the app (so
   they can see group progress and who earned which badge). Your email
   address and personal (non-group) counters are never shown to other users.
-- **Service providers:** we use Google Firebase (Authentication and Cloud
-  Firestore) to sign you in and store your data securely. We use Google
+- **Service providers:** we use Google Firebase (Authentication, Cloud
+  Firestore, and Analytics) to sign you in, store your data securely, and
+  understand app usage. We use Google AdMob to serve ads. We use Google
   Sign-In and/or Sign in with Apple if you choose those sign-in methods.
   These providers process data on our behalf under their own privacy
   policies:
   - [Google Privacy Policy](https://policies.google.com/privacy)
+  - [How Google uses information from apps that use our services](https://policies.google.com/technologies/partner-sites)
   - [Apple Privacy Policy](https://www.apple.com/legal/privacy/)
-- We do not sell your data, and we do not share it with anyone else for
-  advertising or marketing purposes.
+- We do not sell your data. Beyond the ad-serving and analytics described
+  above, we don't share your data with anyone else for advertising or
+  marketing purposes.
 
 ## Data retention and deletion
 

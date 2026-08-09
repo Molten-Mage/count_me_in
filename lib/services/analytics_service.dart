@@ -22,6 +22,8 @@ abstract class AnalyticsLogger {
 
   Future<void> logGroupLeft();
 
+  Future<void> logGroupInviteShared();
+
   Future<void> logChallengeCreated();
 
   Future<void> logChallengeJoined();
@@ -85,6 +87,10 @@ class AnalyticsService implements AnalyticsLogger {
 
   @override
   Future<void> logGroupLeft() => _analytics.logEvent(name: 'group_left');
+
+  @override
+  Future<void> logGroupInviteShared() =>
+      _analytics.logEvent(name: 'group_invite_shared');
 
   @override
   Future<void> logChallengeCreated() =>

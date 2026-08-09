@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 import '../data/challenge_templates.dart';
 import '../services/analytics_service.dart';
@@ -214,6 +215,7 @@ class SettingsPage extends StatelessWidget {
               title: const Text('Privacy Policy'),
               onTap: () => _openPrivacyPolicy(context),
             ),
+            const _PrivacyOptionsTile(),
             // TODO: remove once Crashlytics reporting is confirmed working.
             if (kDebugMode) ...[
               _ForceCrashTile(
@@ -306,6 +308,7 @@ class SettingsPage extends StatelessWidget {
             title: const Text('Privacy Policy'),
             onTap: () => _openPrivacyPolicy(context),
           ),
+          const _PrivacyOptionsTile(),
           // TODO: remove once Crashlytics reporting is confirmed working.
           if (kDebugMode) ...[
             _ForceCrashTile(
@@ -358,6 +361,31 @@ class SettingsPage extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Only shown when Google's UMP SDK says the user is somewhere that
+/// requires offering a way to revisit their ad consent choice (EEA/UK) —
+/// Google's policy requires this entry point exist wherever it applies,
+/// not that it always be shown.
+class _PrivacyOptionsTile extends StatelessWidget {
+  const _PrivacyOptionsTile();
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<PrivacyOptionsRequirementStatus>(
+      future: ConsentInformation.instance.getPrivacyOptionsRequirementStatus(),
+      builder: (context, snapshot) {
+        if (snapshot.data != PrivacyOptionsRequirementStatus.required) {
+          return const SizedBox.shrink();
+        }
+        return ListTile(
+          leading: const Icon(Icons.shield_outlined),
+          title: const Text('Ad privacy options'),
+          onTap: () => ConsentForm.showPrivacyOptionsForm((_) {}),
+        );
+      },
     );
   }
 }

@@ -12,7 +12,7 @@ class PrivacyPolicyPage extends StatelessWidget {
         padding: const EdgeInsets.all(20),
         children: [
           Text(
-            'Last updated: July 30, 2026',
+            'Last updated: August 6, 2026',
             style: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),
@@ -25,12 +25,15 @@ class PrivacyPolicyPage extends StatelessWidget {
           ),
           const _Section('Data we collect'),
           const _Paragraph(
-            'If you use the app without an account (guest mode): none of '
-            'your data leaves your device. Your counters are stored '
+            'If you use the app without an account (guest mode): your '
+            'personal counters, targets, notes, and badges are stored '
             'locally only, using standard on-device storage, and are '
-            'never sent to us or anyone else.',
+            'never sent to us or anyone else. This applies to your '
+            'counter data specifically — guest mode does not exempt you '
+            'from the app usage analytics and advertising data described '
+            'below, which apply to every user of the app, account or not.',
           ),
-          const _Paragraph('If you create an account, we collect:'),
+          const _Paragraph('If you create an account, we additionally collect:'),
           const _Bullet(
             'Account info — an email address and password (if you sign up '
             'with email), or your name and email as shared by Google or '
@@ -50,17 +53,50 @@ class PrivacyPolicyPage extends StatelessWidget {
             'group names, invite codes, targets, member tallies, and '
             'badges earned.',
           ),
+          const _Paragraph('For every user, account or guest, we collect:'),
+          const _Bullet(
+            'Usage analytics — we use Firebase Analytics to understand how '
+            'the app is used: which features get tapped (e.g. creating a '
+            'counter, reaching a goal, joining a group), general '
+            'app-open/session activity, and basic device/OS information. '
+            'This is tied to an anonymous device identifier, not your name '
+            'or email, and never includes the actual content of your '
+            'counters or notes.',
+          ),
+          const _Bullet(
+            "Advertising data — unless you're on the paid Premium tier "
+            '(which removes ads entirely), the app shows banner ads served '
+            'by Google AdMob. AdMob and its partners may use advertising '
+            "identifiers (Apple's IDFA or Android's advertising ID) and "
+            'similar technologies to serve and measure ads, and — only '
+            'with your consent — to personalize them.',
+          ),
+          const _Section('Ad consent'),
           const _Paragraph(
-            "We don't collect analytics, advertising identifiers, "
-            'location data, or any data beyond what\'s described above. '
-            'The app has no ads and no third-party trackers.',
+            'Where required by law (the EEA, UK, and similar '
+            "jurisdictions), the app shows a consent form — provided by "
+            "Google's User Messaging Platform — the first time it would "
+            'show you an ad, letting you choose whether ads can be '
+            "personalized. On iOS, the app also asks for Apple's App "
+            'Tracking Transparency permission before using identifiers '
+            "that track you across other apps. Declining either doesn't "
+            "stop the app from working — you'll just see non-personalized "
+            'ads instead.',
+          ),
+          const _Paragraph(
+            "If you're somewhere this choice applies to you, you can "
+            'change it anytime from Settings → Ad privacy options.',
           ),
           const _Section('How we use your data'),
           const _Paragraph(
-            "Your data is used solely to provide the app's functionality: "
-            'syncing your counters across your devices, and running '
-            "shared group tallies and leaderboards for the groups you're "
-            'part of.',
+            'Your account and app data are used to provide the app\'s '
+            'functionality: syncing your counters across your devices, and '
+            "running shared group tallies and leaderboards for the groups "
+            "you're part of. Usage analytics is used to understand which "
+            'features people actually use so we can improve the app. '
+            'Advertising data is used to serve and measure the ads that '
+            'support the free tier, and — only with consent where '
+            'required — to personalize them.',
           ),
           const _Section('Who your data is shared with'),
           const _Bullet(
@@ -71,16 +107,18 @@ class PrivacyPolicyPage extends StatelessWidget {
             'counters are never shown to other users.',
           ),
           const _Bullet(
-            'Service providers: we use Google Firebase (Authentication '
-            'and Cloud Firestore) to sign you in and store your data '
-            'securely, and Google Sign-In and/or Sign in with Apple if '
-            'you choose those sign-in methods. These providers process '
+            'Service providers: we use Google Firebase (Authentication, '
+            'Cloud Firestore, and Analytics) to sign you in, store your '
+            'data securely, and understand app usage. We use Google AdMob '
+            'to serve ads. We use Google Sign-In and/or Sign in with Apple '
+            'if you choose those sign-in methods. These providers process '
             "data on our behalf under their own privacy policies (Google's "
             "and Apple's).",
           ),
           const _Paragraph(
-            'We do not sell your data, and we do not share it with anyone '
-            'else for advertising or marketing purposes.',
+            'We do not sell your data. Beyond the ad-serving and analytics '
+            "described above, we don't share your data with anyone else "
+            'for advertising or marketing purposes.',
           ),
           const _Section('Data retention and deletion'),
           const _Paragraph(

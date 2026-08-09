@@ -39,6 +39,10 @@ class FakeAnalyticsLogger implements AnalyticsLogger {
   Future<void> logGroupLeft() async => events.add('group_left');
 
   @override
+  Future<void> logGroupInviteShared() async =>
+      events.add('group_invite_shared');
+
+  @override
   Future<void> logChallengeCreated() async => events.add('challenge_created');
 
   @override

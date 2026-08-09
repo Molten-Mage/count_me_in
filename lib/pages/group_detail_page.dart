@@ -5,6 +5,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '../models/group.dart';
 import '../models/group_member.dart';
+import '../services/analytics_service.dart';
 import '../services/group_service.dart';
 import '../widgets/app_dialog.dart';
 import '../widgets/badge_icon.dart';
@@ -55,11 +56,14 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
             }
 
             void shareCode() {
+              analyticsService.logGroupInviteShared();
               SharePlus.instance.share(
                 ShareParams(
                   text:
                       'Join my group "${group.name}" on Count Me In! '
-                      'Use invite code ${group.code} to join.',
+                      'Use invite code ${group.code} to join, or tap this '
+                      'link if you already have the app: '
+                      'countmein://join/group/${group.code}',
                 ),
               );
             }

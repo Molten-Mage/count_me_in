@@ -26,10 +26,8 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
-	<!-- AdMob test App ID (developers.google.com/admob/ios/test-ads).
-	     Replace with your real App ID from the AdMob console before release. -->
 	<key>GADApplicationIdentifier</key>
-	<string>ca-app-pub-3940256099942544~1458002511</string>
+	<string>ca-app-pub-7276238684080299~4368347731</string>
 	<key>NSUserTrackingUsageDescription</key>
 	<string>This identifier will be used to deliver personalized ads to you.</string>
 	<key>GIDClientID</key>
@@ -42,6 +40,23 @@
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>com.googleusercontent.apps.1057531841336-d5j4npjmblnnuohm4qlub3rdpjpkb38m</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>com.countmein.deeplink</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<!-- Custom-scheme deep links (e.g. countmein://join/group/ABC123)
+				     for invite links — see lib/services/deep_link_service.dart.
+				     Once there's a domain and Apple Developer Program
+				     enrollment, this should be replaced/supplemented with real
+				     Universal Links (Associated Domains + hosting
+				     apple-app-site-association) for the full experience,
+				     including an App Store fallback. -->
+				<string>countmein</string>
 			</array>
 		</dict>
 	</array>
