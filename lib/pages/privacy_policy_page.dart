@@ -12,7 +12,7 @@ class PrivacyPolicyPage extends StatelessWidget {
         padding: const EdgeInsets.all(20),
         children: [
           Text(
-            'Last updated: August 6, 2026',
+            'Last updated: August 9, 2026',
             style: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),
@@ -148,6 +148,11 @@ class PrivacyPolicyPage extends StatelessWidget {
             'If this policy changes, we\'ll update the "Last updated" '
             'date above. Continued use of the app after a change means '
             'you accept the updated policy.',
+          ),
+          const _Section('Contact'),
+          const _Paragraph(
+            'Questions about this policy, or general support, can be sent '
+            'to contact.moltenmage@gmail.com.',
           ),
           const SizedBox(height: 24),
         ],

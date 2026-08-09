@@ -12,12 +12,16 @@ class AppNavigation {
     (_) => GlobalKey<NavigatorState>(),
   );
 
+  static const challengesTabIndex = 0;
   static const groupsTabIndex = 1;
 
   /// Which tab MainShell should show. MainShell listens to this and also
   /// updates it when the user taps a tab directly, so it stays in sync
   /// either way.
   final ValueNotifier<int> selectedTab = ValueNotifier<int>(2);
+
+  GlobalKey<NavigatorState> get challengesNavigatorKey =>
+      tabNavigatorKeys[challengesTabIndex];
 
   GlobalKey<NavigatorState> get groupsNavigatorKey =>
       tabNavigatorKeys[groupsTabIndex];

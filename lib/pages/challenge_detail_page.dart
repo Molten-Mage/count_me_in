@@ -152,7 +152,9 @@ class _ChallengeDetailPageState extends State<ChallengeDetailPage> {
                 ShareParams(
                   text:
                       'Join my challenge "${challenge.name}" on Count Me In! '
-                      'Use invite code ${challenge.code} to join.',
+                      'Use invite code ${challenge.code} to join, or tap this '
+                      'link if you already have the app: '
+                      'countmein://join/challenge/${challenge.code}',
                 ),
               );
             }

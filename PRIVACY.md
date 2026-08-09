@@ -1,6 +1,6 @@
 # Privacy Policy for Count Me In
 
-**Last updated: August 6, 2026**
+**Last updated: August 9, 2026**
 
 Count Me In ("the app") is a personal goal and group tally tracker. This
 policy explains what data the app collects, how it's used, and who it's
@@ -110,3 +110,8 @@ is 100% secure, but we take reasonable steps to protect your information.
 
 If this policy changes, we'll update the "Last updated" date above. Continued
 use of the app after a change means you accept the updated policy.
+
+## Contact
+
+Questions about this policy, or general support, can be sent to
+[contact.moltenmage@gmail.com](mailto:contact.moltenmage@gmail.com).
