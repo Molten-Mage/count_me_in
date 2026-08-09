@@ -255,6 +255,70 @@ class GroupService {
       'tally': FieldValue.increment(amount),
     });
     await _maybeAwardGroupBadge(groupRef);
+    await _maybeNotifyThreshold(groupRef, uid);
+    await _touchGroupActivity(groupRef);
+  }
+
+  /// Marks the group as recently active and clears any pending "gone
+  /// quiet" reminder — called on every tally change (increment or
+  /// decrement) by any member. Read by the `notifyGroupQuiet` scheduled
+  /// Cloud Function (functions/index.js) to find groups nobody's touched
+  /// in a while; clearing `quietNotifiedAt` here (rather than only ever
+  /// setting it) means a group that goes quiet again later isn't blocked
+  /// by a stale cooldown timestamp from its last quiet period.
+  Future<void> _touchGroupActivity(
+    DocumentReference<Map<String, dynamic>> groupRef,
+  ) async {
+    await groupRef.update({
+      'lastActivityAt': FieldValue.serverTimestamp(),
+      'quietNotifiedAt': null,
+    });
+  }
+
+  /// Notifies the rest of the group once [memberUid]'s own tally reaches
+  /// 80% of the group's target, once per target value (dedupe mirrors
+  /// [_maybeAwardGroupBadge]'s pattern via a field on the member doc
+  /// instead of the group's badges list, since this is per-member rather
+  /// than combined). Writes are picked up and actually sent by the
+  /// `sendPushNotification` Cloud Function (functions/index.js), which
+  /// also checks the recipient's notification preference before sending.
+  Future<void> _maybeNotifyThreshold(
+    DocumentReference<Map<String, dynamic>> groupRef,
+    String memberUid,
+  ) async {
+    await _firestore.runTransaction((transaction) async {
+      final groupSnapshot = await transaction.get(groupRef);
+      final groupData = groupSnapshot.data();
+      if (groupData == null) return;
+      final group = Group.fromFirestore(groupSnapshot.id, groupData);
+
+      final target = group.target;
+      if (target == null || target <= 0) return;
+
+      final memberRef = groupRef.collection('members').doc(memberUid);
+      final memberSnapshot = await transaction.get(memberRef);
+      final memberData = memberSnapshot.data();
+      if (memberData == null) return;
+      final member = GroupMember.fromFirestore(memberUid, memberData);
+
+      if (member.notifiedThresholdFor == target) return;
+      final threshold = (target * 0.8).ceil();
+      if (member.tally < threshold) return;
+
+      transaction.update(memberRef, {'notifiedThresholdFor': target});
+
+      final notifications = _firestore.collection('pushNotifications');
+      for (final recipientUid in group.memberIds) {
+        if (recipientUid == memberUid) continue;
+        transaction.set(notifications.doc(), {
+          'recipientUid': recipientUid,
+          'type': 'group_threshold',
+          'title': group.name,
+          'body': '${member.displayName} just hit 80% of the group goal!',
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      }
+    });
   }
 
   /// Awards a badge for the group's current target if the combined tally
@@ -299,6 +363,20 @@ class GroupService {
       transaction.update(groupRef, {
         'badges': updatedBadges.map((b) => b.toFirestore()).toList(),
       });
+
+      // Everyone but whoever's tally just crossed the line gets a push —
+      // they already see the in-app celebration dialog immediately.
+      final notifications = _firestore.collection('pushNotifications');
+      for (final recipientUid in group.memberIds) {
+        if (recipientUid == _uid) continue;
+        transaction.set(notifications.doc(), {
+          'recipientUid': recipientUid,
+          'type': 'group_goal_reached',
+          'title': group.name,
+          'body': 'Goal reached — $total/$target!',
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      }
     });
   }
 
@@ -309,11 +387,13 @@ class GroupService {
     String uid,
     int amount,
   ) async {
-    final ref = _groups.doc(groupId).collection('members').doc(uid);
+    final groupRef = _groups.doc(groupId);
+    final ref = groupRef.collection('members').doc(uid);
     await _firestore.runTransaction((transaction) async {
       final snapshot = await transaction.get(ref);
       final current = (snapshot.data()?['tally'] as int?) ?? 0;
       transaction.update(ref, {'tally': max(current - amount, 0)});
     });
+    await _touchGroupActivity(groupRef);
   }
 }

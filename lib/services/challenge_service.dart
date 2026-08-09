@@ -284,13 +284,95 @@ class ChallengeService {
     String challengeId,
     String objectiveId,
     int amount,
-  ) => _applyTallyDelta(challengeId, objectiveId, amount);
+  ) async {
+    await _applyTallyDelta(challengeId, objectiveId, amount);
+    await _maybeNotifyLeaderboardPass(challengeId, objectiveId, amount);
+  }
 
   Future<void> decrementObjectiveTally(
     String challengeId,
     String objectiveId,
     int amount,
-  ) => _applyTallyDelta(challengeId, objectiveId, -amount);
+  ) async {
+    await _applyTallyDelta(challengeId, objectiveId, -amount);
+    await _maybeNotifyLeaderboardPass(challengeId, objectiveId, -amount);
+  }
+
+  /// The same overall-percent metric shown as each participant's progress
+  /// in challenge_detail_page.dart / challenge_participants_page.dart —
+  /// the average, across every objective that has a target, of that
+  /// objective's tally-over-target (clamped to 100%).
+  double _percentComplete(List<ChallengeObjective> targeted, Map<String, int> tallies) {
+    final total = targeted.fold<double>(
+      0,
+      (acc, o) => acc + ((tallies[o.id] ?? 0) / o.target!).clamp(0.0, 1.0),
+    );
+    return total / targeted.length;
+  }
+
+  /// After an objective tally increases (never fires on decrements — a
+  /// drop can't be described as "passing" anyone), checks whether the
+  /// acting participant's overall percent-complete now exceeds another
+  /// participant's when it didn't just before this change, and notifies
+  /// whoever got passed. "Before" is derived arithmetically by undoing
+  /// [delta] on [objectiveId] rather than re-reading — cheaper, and this
+  /// only ever gets called right after that exact delta was applied.
+  /// Runs as plain reads/writes rather than a transaction: a missed or
+  /// duplicate "just passed you" push under rare concurrent updates isn't
+  /// worth the extra round trips for a notification (unlike the badge and
+  /// threshold checks elsewhere, which guard against real duplication).
+  Future<void> _maybeNotifyLeaderboardPass(
+    String challengeId,
+    String objectiveId,
+    int delta,
+  ) async {
+    if (delta <= 0) return;
+
+    final challengeRef = _challenges.doc(challengeId);
+    final challengeSnapshot = await challengeRef.get();
+    final challengeData = challengeSnapshot.data();
+    if (challengeData == null) return;
+    final challenge = Challenge.fromFirestore(challengeSnapshot.id, challengeData);
+
+    final targeted = challenge.objectives.where((o) => (o.target ?? 0) > 0).toList();
+    if (targeted.isEmpty) return;
+
+    final participantsSnapshot = await challengeRef.collection('participants').get();
+    final participants = participantsSnapshot.docs
+        .map((doc) => ChallengeParticipant.fromFirestore(doc.id, doc.data()))
+        .toList();
+
+    ChallengeParticipant? me;
+    for (final p in participants) {
+      if (p.uid == _uid) me = p;
+    }
+    if (me == null) return;
+
+    final afterPercent = _percentComplete(targeted, me.tallies);
+    final beforeTallies = Map<String, int>.from(me.tallies);
+    beforeTallies[objectiveId] = max((beforeTallies[objectiveId] ?? 0) - delta, 0);
+    final beforePercent = _percentComplete(targeted, beforeTallies);
+    if (afterPercent <= beforePercent) return;
+
+    final notifications = _firestore.collection('pushNotifications');
+    final batch = _firestore.batch();
+    var wroteAny = false;
+    for (final other in participants) {
+      if (other.uid == _uid) continue;
+      final otherPercent = _percentComplete(targeted, other.tallies);
+      if (beforePercent <= otherPercent && afterPercent > otherPercent) {
+        batch.set(notifications.doc(), {
+          'recipientUid': other.uid,
+          'type': 'challenge_passed',
+          'title': challenge.name,
+          'body': '$_displayName just passed you in "${challenge.name}"!',
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+        wroteAny = true;
+      }
+    }
+    if (wroteAny) await batch.commit();
+  }
 
   /// Applies a signed delta to one objective's tally (clamped at zero), and
   /// sets or clears `completedAt` on the false<->true transition of "every

@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../services/deep_link_service.dart';
+import '../services/push_notification_service.dart';
 import 'login_page.dart';
 import 'main_shell.dart';
 
@@ -33,9 +34,10 @@ class _AuthGateState extends State<AuthGate> {
           );
         }
         if (snapshot.hasData) {
-          WidgetsBinding.instance.addPostFrameCallback(
-            (_) => deepLinkService.retryPendingJoin(),
-          );
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            deepLinkService.retryPendingJoin();
+            pushNotificationService.init();
+          });
           return const MainShell();
         }
         return LoginPage(

@@ -35,6 +35,23 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
+    // Fan-out target for push notifications (see functions/index.js, which
+    // consumes these via the Admin SDK and therefore bypasses these rules
+    // entirely — this only governs the one client-side writer, the group
+    // 80%-threshold check in GroupService). No client ever reads, updates,
+    // or deletes these; the Cloud Function deletes each doc once handled.
+    match /pushNotifications/{id} {
+      allow create: if request.auth != null
+        && request.resource.data.recipientUid is string
+        && request.resource.data.recipientUid != request.auth.uid
+        && request.resource.data.type is string
+        && request.resource.data.title is string
+        && request.resource.data.body is string
+        && request.resource.data.keys().hasOnly(
+          ['recipientUid', 'type', 'title', 'body', 'createdAt']
+        );
+    }
+
     match /groups/{groupId} {
       allow read: if request.auth != null;
       allow create: if request.auth != null
@@ -82,6 +99,16 @@ service cloud.firestore {
             request.auth.uid in resource.data.memberIds
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['badges'])
           )
+          // Any current member can bump the group's activity timestamp
+          // (and clear any pending "gone quiet" reminder) — see
+          // GroupService._touchGroupActivity, called on every tally
+          // change. Read by the notifyGroupQuiet Cloud Function.
+          || (
+            request.auth.uid in resource.data.memberIds
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(
+              ['lastActivityAt', 'quietNotifiedAt']
+            )
+          )
         );
       allow delete: if request.auth != null
         && request.auth.uid == resource.data.createdBy;
@@ -90,24 +117,29 @@ service cloud.firestore {
         allow read: if request.auth != null;
 
         // Joining a group is always self-service, and the member doc must
-        // start at exactly zero.
+        // start at exactly zero (with no threshold notification sent yet).
         allow create: if request.auth != null
           && request.auth.uid == memberId
-          && request.resource.data.keys().hasOnly(['displayName', 'tally', 'joinedAt'])
+          && request.resource.data.keys().hasOnly(
+            ['displayName', 'tally', 'joinedAt', 'notifiedThresholdFor']
+          )
           && request.resource.data.displayName is string
           && request.resource.data.tally == 0
-          && request.resource.data.joinedAt is timestamp;
+          && request.resource.data.joinedAt is timestamp
+          && request.resource.data.notifiedThresholdFor == null;
 
         // In a member-controlled group (the default, and legacy groups
         // predating the `adminControlled` field) each member updates their
         // own doc. In an admin-controlled group only the group's creator
-        // can update any member's doc, including their own. Only the
-        // `tally` field may change via update, and it must stay a
-        // non-negative int within a sane bound — previously any value
-        // (including negative, or unbounded) was accepted here with no
-        // server-side check, relying only on the app's client-side
-        // clamping. Keep this bound in sync with `maxCounterInput` in
-        // lib/widgets/app_dialog.dart.
+        // can update any member's doc, including their own. Either the
+        // `tally` field changes (kept a non-negative int within a sane
+        // bound — previously any value, including negative or unbounded,
+        // was accepted here with no server-side check, relying only on the
+        // app's client-side clamping; keep this bound in sync with
+        // `maxCounterInput` in lib/widgets/app_dialog.dart), or — as a
+        // separate write, from GroupService._maybeNotifyThreshold — just
+        // `notifiedThresholdFor` changes, recording that this member's
+        // 80%-of-target push notification has already gone out.
         allow update: if request.auth != null
           && (
             (
@@ -117,10 +149,18 @@ service cloud.firestore {
             || request.auth.uid
               == get(/databases/$(database)/documents/groups/$(groupId)).data.createdBy
           )
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['tally'])
-          && request.resource.data.tally is int
-          && request.resource.data.tally >= 0
-          && request.resource.data.tally <= 999999;
+          && (
+            (
+              request.resource.data.diff(resource.data).affectedKeys().hasOnly(['tally'])
+              && request.resource.data.tally is int
+              && request.resource.data.tally >= 0
+              && request.resource.data.tally <= 999999
+            )
+            || (
+              request.resource.data.diff(resource.data).affectedKeys().hasOnly(['notifiedThresholdFor'])
+              && request.resource.data.notifiedThresholdFor is int
+            )
+          );
 
         // Any member can delete their own doc (leaving the group); the
         // group creator can also remove other members' docs.

@@ -25,8 +25,19 @@ class Counter {
   final String notes;
   final List<CounterBadge> badges;
   final DateTime createdAt;
+  // Bumped whenever `count` actually changes (increment, decrement, or
+  // reset) — not on title/notes edits. Read by the counter-inactivity
+  // reminder Cloud Function to find counters nobody's touched in a while.
+  final DateTime updatedAt;
+  // Set only by that Cloud Function (functions/index.js), never by the
+  // client — carried through copyWith/withDetails unchanged so a save
+  // triggered by editing one counter doesn't wipe this bookkeeping field
+  // off every other counter in the same account (all counters live in one
+  // array field on the user doc, saved as a whole — see
+  // lib/services/firestore_counter_storage.dart).
+  final DateTime? lastInactivityReminderAt;
 
-  const Counter({
+  Counter({
     required this.id,
     required this.title,
     this.target,
@@ -34,7 +45,9 @@ class Counter {
     this.notes = '',
     this.badges = const [],
     required this.createdAt,
-  });
+    DateTime? updatedAt,
+    this.lastInactivityReminderAt,
+  }) : updatedAt = updatedAt ?? createdAt;
 
   double? get progress {
     final target = this.target;
@@ -76,6 +89,10 @@ class Counter {
       notes: notes ?? this.notes,
       badges: badges ?? this.badges,
       createdAt: createdAt,
+      // Only bumped when `count` itself is actually changing — editing
+      // notes/badges alone shouldn't reset the inactivity clock.
+      updatedAt: count != null ? DateTime.now() : updatedAt,
+      lastInactivityReminderAt: lastInactivityReminderAt,
     );
   }
 
@@ -88,6 +105,8 @@ class Counter {
       notes: notes,
       badges: badges,
       createdAt: createdAt,
+      updatedAt: updatedAt,
+      lastInactivityReminderAt: lastInactivityReminderAt,
     );
   }
 
@@ -99,6 +118,8 @@ class Counter {
     'notes': notes,
     'badges': badges.map((b) => b.toJson()).toList(),
     'createdAt': createdAt.toIso8601String(),
+    'updatedAt': updatedAt.toIso8601String(),
+    'lastInactivityReminderAt': lastInactivityReminderAt?.toIso8601String(),
   };
 
   factory Counter.fromJson(Map<String, dynamic> json) => Counter(
@@ -113,5 +134,12 @@ class Counter {
             .toList() ??
         const [],
     createdAt: DateTime.parse(json['createdAt'] as String),
+    // Falls back to createdAt for counters saved before this field existed.
+    updatedAt: json['updatedAt'] != null
+        ? DateTime.parse(json['updatedAt'] as String)
+        : DateTime.parse(json['createdAt'] as String),
+    lastInactivityReminderAt: json['lastInactivityReminderAt'] != null
+        ? DateTime.parse(json['lastInactivityReminderAt'] as String)
+        : null,
   );
 }

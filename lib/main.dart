@@ -1,5 +1,6 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -9,6 +10,7 @@ import 'firebase_options.dart';
 import 'pages/auth_gate.dart';
 import 'services/deep_link_service.dart';
 import 'services/premium_service.dart';
+import 'services/push_notification_service.dart';
 import 'services/theme_controller.dart';
 import 'widgets/ad_banner.dart';
 
@@ -17,6 +19,7 @@ const _seedColor = Color(0xFF1B5E20);
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
   // Crashlytics doesn't support web.
   if (!kIsWeb) {

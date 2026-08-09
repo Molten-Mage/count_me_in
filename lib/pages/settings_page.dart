@@ -15,6 +15,7 @@ import '../widgets/change_password_dialog.dart';
 import '../widgets/confirm_delete_dialog.dart';
 import '../widgets/delete_account_dialog.dart';
 import '../widgets/premium_upsell_dialog.dart';
+import 'notification_settings_page.dart';
 import 'privacy_policy_page.dart';
 
 class SettingsPage extends StatelessWidget {
@@ -26,6 +27,14 @@ class SettingsPage extends StatelessWidget {
   void _openPrivacyPolicy(BuildContext context) {
     Navigator.of(context).push(
       MaterialPageRoute(builder: (context) => const PrivacyPolicyPage()),
+    );
+  }
+
+  void _openNotificationSettings(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => const NotificationSettingsPage(),
+      ),
     );
   }
 
@@ -304,6 +313,15 @@ class SettingsPage extends StatelessWidget {
             child: Divider(),
           ),
           ListTile(
+            leading: const Icon(Icons.notifications_outlined),
+            title: const Text('Notification settings'),
+            onTap: () => _openNotificationSettings(context),
+          ),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16),
+            child: Divider(),
+          ),
+          ListTile(
             leading: const Icon(Icons.privacy_tip_outlined),
             title: const Text('Privacy Policy'),
             onTap: () => _openPrivacyPolicy(context),
@@ -441,6 +459,7 @@ class _GenerateChallengeTile extends StatelessWidget {
     final random = Random();
     final category = challengeCategories[random.nextInt(challengeCategories.length)];
     final name = category.flavorNames[random.nextInt(category.flavorNames.length)];
+    final description = category.descriptions[random.nextInt(category.descriptions.length)];
     final objectiveCount = min(1 + random.nextInt(4), category.objectives.length);
     final chosen = (List.of(category.objectives)..shuffle(random)).take(objectiveCount);
     final durationDays = challengeDurationDaysOptions[random.nextInt(
@@ -450,7 +469,7 @@ class _GenerateChallengeTile extends StatelessWidget {
     try {
       final challenge = await ChallengeService().createOfficialChallenge(
         name: name,
-        description: category.description,
+        description: description,
         endsAt: DateTime.now().add(Duration(days: durationDays)),
         objectives: [
           for (final o in chosen)

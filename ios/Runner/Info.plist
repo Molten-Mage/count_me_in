@@ -83,6 +83,14 @@
 	</dict>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>UIBackgroundModes</key>
+	<array>
+		<!-- Push notifications (see lib/services/push_notification_service.dart)
+		     still need an APNs key uploaded in the Firebase console and the
+		     Push Notifications capability added in Xcode — both require Apple
+		     Developer Program enrollment, which hasn't happened yet. -->
+		<string>remote-notification</string>
+	</array>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
