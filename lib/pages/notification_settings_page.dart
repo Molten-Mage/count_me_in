@@ -24,8 +24,23 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
             return const Center(child: CircularProgressIndicator());
           }
           final prefs = snapshot.data!;
+          // Individual toggles stay visible but disabled (and keep showing
+          // their real stored value, not forced off) while the master
+          // switch is off — so turning it back on restores whatever was
+          // set before, same pattern as iOS/Android's own notification
+          // settings.
           return ListView(
             children: [
+              SwitchListTile(
+                secondary: const Icon(Icons.notifications_active_outlined),
+                title: const Text('All notifications'),
+                subtitle: const Text(
+                  'Turn every notification below on or off at once',
+                ),
+                value: prefs.allEnabled,
+                onChanged: (value) => _service.setAllEnabled(value),
+              ),
+              const Divider(height: 1),
               const _SectionHeader('Groups'),
               SwitchListTile(
                 secondary: const Icon(Icons.groups_outlined),
@@ -35,7 +50,9 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
                   'of the goal',
                 ),
                 value: prefs.groupThreshold,
-                onChanged: (value) => _service.setGroupThreshold(value),
+                onChanged: prefs.allEnabled
+                    ? (value) => _service.setGroupThreshold(value)
+                    : null,
               ),
               SwitchListTile(
                 secondary: const Icon(Icons.emoji_events_outlined),
@@ -44,7 +61,9 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
                   "Notify me when a group I'm in hits its goal",
                 ),
                 value: prefs.groupGoalReached,
-                onChanged: (value) => _service.setGroupGoalReached(value),
+                onChanged: prefs.allEnabled
+                    ? (value) => _service.setGroupGoalReached(value)
+                    : null,
               ),
               SwitchListTile(
                 secondary: const Icon(Icons.volume_off_outlined),
@@ -54,7 +73,9 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
                   'in a while',
                 ),
                 value: prefs.groupQuiet,
-                onChanged: (value) => _service.setGroupQuiet(value),
+                onChanged: prefs.allEnabled
+                    ? (value) => _service.setGroupQuiet(value)
+                    : null,
               ),
               const _SectionHeader('Challenges'),
               SwitchListTile(
@@ -65,7 +86,9 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
                   'halfway point',
                 ),
                 value: prefs.challengeHalfway,
-                onChanged: (value) => _service.setChallengeHalfway(value),
+                onChanged: prefs.allEnabled
+                    ? (value) => _service.setChallengeHalfway(value)
+                    : null,
               ),
               SwitchListTile(
                 secondary: const Icon(Icons.timer_outlined),
@@ -74,7 +97,9 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
                   "Notify me when a challenge I'm in is close to ending",
                 ),
                 value: prefs.challengeDeadline,
-                onChanged: (value) => _service.setChallengeDeadline(value),
+                onChanged: prefs.allEnabled
+                    ? (value) => _service.setChallengeDeadline(value)
+                    : null,
               ),
               SwitchListTile(
                 secondary: const Icon(Icons.leaderboard_outlined),
@@ -84,7 +109,9 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
                   'a challenge',
                 ),
                 value: prefs.challengePassed,
-                onChanged: (value) => _service.setChallengePassed(value),
+                onChanged: prefs.allEnabled
+                    ? (value) => _service.setChallengePassed(value)
+                    : null,
               ),
               const _SectionHeader('Personal counters'),
               SwitchListTile(
@@ -95,7 +122,9 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
                   'in a while',
                 ),
                 value: prefs.counterInactivity,
-                onChanged: (value) => _service.setCounterInactivity(value),
+                onChanged: prefs.allEnabled
+                    ? (value) => _service.setCounterInactivity(value)
+                    : null,
               ),
             ],
           );

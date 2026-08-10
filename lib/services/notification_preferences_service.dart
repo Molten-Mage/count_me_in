@@ -2,6 +2,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class NotificationPreferences {
+  // Master switch — checked server-side too (functions/index.js), so
+  // turning it off is a real kill switch, not just a UI shortcut for
+  // flipping the seven type toggles below.
+  final bool allEnabled;
   final bool groupThreshold;
   final bool groupGoalReached;
   final bool groupQuiet;
@@ -11,6 +15,7 @@ class NotificationPreferences {
   final bool counterInactivity;
 
   const NotificationPreferences({
+    this.allEnabled = true,
     this.groupThreshold = true,
     this.groupGoalReached = true,
     this.groupQuiet = true,
@@ -22,6 +27,7 @@ class NotificationPreferences {
 
   factory NotificationPreferences.fromFirestore(Map<String, dynamic>? data) =>
       NotificationPreferences(
+        allEnabled: data?['allEnabled'] as bool? ?? true,
         groupThreshold: data?['groupThreshold'] as bool? ?? true,
         groupGoalReached: data?['groupGoalReached'] as bool? ?? true,
         groupQuiet: data?['groupQuiet'] as bool? ?? true,
@@ -63,6 +69,8 @@ class NotificationPreferencesService {
       ),
     );
   }
+
+  Future<void> setAllEnabled(bool value) => _setPref('allEnabled', value);
 
   Future<void> setGroupThreshold(bool value) => _setPref('groupThreshold', value);
 
