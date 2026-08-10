@@ -50,18 +50,30 @@ exports.sendPushNotification = onDocumentCreated(
 
         const userSnap = await db.collection("users").doc(recipientUid).get();
         const userData = userSnap.data() || {};
+        const prefs = userData.notificationPrefs || {};
         const token = userData.fcmToken;
         const prefKey = PREF_KEY_BY_TYPE[type];
-        const enabled = prefKey ?
-          (userData.notificationPrefs || {})[prefKey] ?? true :
-          true;
+        const masterEnabled = prefs.allEnabled ?? true;
+        const typeEnabled = prefKey ? (prefs[prefKey] ?? true) : true;
 
-        if (!token || !enabled) return;
+        if (!token) {
+          logger.info("Skipped push — no fcmToken on file", {
+            recipientUid, type,
+          });
+          return;
+        }
+        if (!masterEnabled || !typeEnabled) {
+          logger.info("Skipped push — disabled by preference", {
+            recipientUid, type, masterEnabled, typeEnabled,
+          });
+          return;
+        }
 
         await messaging.send({
           token,
           notification: {title, body},
         });
+        logger.info("Sent push", {recipientUid, type});
       } catch (err) {
         logger.error("Failed to send push notification", err);
       } finally {
