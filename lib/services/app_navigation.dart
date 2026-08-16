@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// Lets code outside the widget tree — currently just [DeepLinkService] —
+/// Lets code outside the widget tree - currently just [DeepLinkService] -
 /// switch `MainShell`'s visible tab and push onto a specific tab's own
 /// Navigator, e.g. landing on a group's detail page inside the Groups
 /// tab's stack after auto-joining via an invite link.

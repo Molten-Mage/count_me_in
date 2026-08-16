@@ -5,7 +5,7 @@ class GroupMember {
   final String displayName;
   final int tally;
   final DateTime joinedAt;
-  // The group target this member was last notified for reaching 80% of —
+  // The group target this member was last notified for reaching 80% of -
   // null if never notified. Compared against the group's current target
   // so a target change makes them eligible for a fresh notification.
   final int? notifiedThresholdFor;

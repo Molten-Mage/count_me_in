@@ -4,7 +4,7 @@ import '../services/premium_service.dart';
 import 'app_dialog.dart';
 import 'premium_upsell_dialog.dart';
 
-/// Shown when the free-tier item limit is hit — explains the limit, then
+/// Shown when the free-tier item limit is hit - explains the limit, then
 /// hands off to [showPremiumUpsellDialog] for the actual sales pitch.
 Future<void> showPaywallDialog(BuildContext context) {
   return showDialog<void>(

@@ -29,33 +29,33 @@ class PrivacyPolicyPage extends StatelessWidget {
             'personal counters, targets, notes, and badges are stored '
             'locally only, using standard on-device storage, and are '
             'never sent to us or anyone else. This applies to your '
-            'counter data specifically — guest mode does not exempt you '
+            'counter data specifically - guest mode does not exempt you '
             'from the app usage analytics and advertising data described '
             'below, which apply to every user of the app, account or not.',
           ),
           const _Paragraph('If you create an account, we additionally collect:'),
           const _Bullet(
-            'Account info — an email address and password (if you sign up '
+            'Account info - an email address and password (if you sign up '
             'with email), or your name and email as shared by Google or '
             'Apple (if you sign in with one of those). Passwords are '
             'handled entirely by our authentication provider (Firebase '
-            'Authentication) — the app never sees or stores your password '
+            'Authentication) - the app never sees or stores your password '
             'itself.',
           ),
           const _Bullet(
-            'Display name — the name shown to other members of any group '
+            'Display name - the name shown to other members of any group '
             'you join. This comes from your Google/Apple account, or a '
             'username you choose when registering with email.',
           ),
           const _Bullet(
-            'App data — the personal counters, targets, notes, and badges '
+            'App data - the personal counters, targets, notes, and badges '
             'you create, and any groups you create or join, including '
             'group names, invite codes, targets, member tallies, and '
             'badges earned.',
           ),
           const _Paragraph('For every user, account or guest, we collect:'),
           const _Bullet(
-            'Usage analytics — we use Firebase Analytics to understand how '
+            'Usage analytics - we use Firebase Analytics to understand how '
             'the app is used: which features get tapped (e.g. creating a '
             'counter, reaching a goal, joining a group), general '
             'app-open/session activity, and basic device/OS information. '
@@ -64,23 +64,23 @@ class PrivacyPolicyPage extends StatelessWidget {
             'counters or notes.',
           ),
           const _Bullet(
-            "Advertising data — unless you're on the paid Premium tier "
+            "Advertising data - unless you're on the paid Premium tier "
             '(which removes ads entirely), the app shows banner ads served '
             'by Google AdMob. AdMob and its partners may use advertising '
             "identifiers (Apple's IDFA or Android's advertising ID) and "
-            'similar technologies to serve and measure ads, and — only '
-            'with your consent — to personalize them.',
+            'similar technologies to serve and measure ads, and - only '
+            'with your consent - to personalize them.',
           ),
           const _Section('Ad consent'),
           const _Paragraph(
             'Where required by law (the EEA, UK, and similar '
-            "jurisdictions), the app shows a consent form — provided by "
-            "Google's User Messaging Platform — the first time it would "
+            "jurisdictions), the app shows a consent form - provided by "
+            "Google's User Messaging Platform - the first time it would "
             'show you an ad, letting you choose whether ads can be '
             "personalized. On iOS, the app also asks for Apple's App "
             'Tracking Transparency permission before using identifiers '
             "that track you across other apps. Declining either doesn't "
-            "stop the app from working — you'll just see non-personalized "
+            "stop the app from working - you'll just see non-personalized "
             'ads instead.',
           ),
           const _Paragraph(
@@ -95,8 +95,8 @@ class PrivacyPolicyPage extends StatelessWidget {
             "you're part of. Usage analytics is used to understand which "
             'features people actually use so we can improve the app. '
             'Advertising data is used to serve and measure the ads that '
-            'support the free tier, and — only with consent where '
-            'required — to personalize them.',
+            'support the free tier, and - only with consent where '
+            'required - to personalize them.',
           ),
           const _Section('Who your data is shared with'),
           const _Bullet(

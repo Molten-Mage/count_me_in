@@ -7,7 +7,7 @@ import 'challenge_emblem.dart';
 import 'confetti_overlay.dart';
 
 /// Celebratory popup shown the moment the viewer's own tallies reach every
-/// objective in a challenge — same confetti/scale-in language as
+/// objective in a challenge - same confetti/scale-in language as
 /// [showGoalReachedDialog], but without a "new goal" flow, since raising a
 /// target doesn't map cleanly onto a multi-objective challenge.
 Future<void> showChallengeCompletedDialog(

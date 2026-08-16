@@ -16,7 +16,7 @@ const challengeEmblemIcons = [
   Icons.whatshot,
 ];
 
-/// A challenge's cosmetic emblem — a random icon/color pair assigned once at
+/// A challenge's cosmetic emblem - a random icon/color pair assigned once at
 /// creation, shown wherever the challenge is listed. Purely decorative, not
 /// tied to progress or completion (unlike [BadgeIcon]).
 class ChallengeEmblem extends StatelessWidget {

@@ -12,7 +12,7 @@ const db = getFirestore();
 const messaging = getMessaging();
 
 // Maps a pushNotifications doc's `type` to the notificationPrefs key that
-// gates it — kept in sync with
+// gates it - kept in sync with
 // lib/services/notification_preferences_service.dart.
 const PREF_KEY_BY_TYPE = {
   group_threshold: "groupThreshold",
@@ -57,13 +57,13 @@ exports.sendPushNotification = onDocumentCreated(
         const typeEnabled = prefKey ? (prefs[prefKey] ?? true) : true;
 
         if (!token) {
-          logger.info("Skipped push — no fcmToken on file", {
+          logger.info("Skipped push - no fcmToken on file", {
             recipientUid, type,
           });
           return;
         }
         if (!masterEnabled || !typeEnabled) {
-          logger.info("Skipped push — disabled by preference", {
+          logger.info("Skipped push - disabled by preference", {
             recipientUid, type, masterEnabled, typeEnabled,
           });
           return;
@@ -85,13 +85,13 @@ exports.sendPushNotification = onDocumentCreated(
 /**
  * Every hour, notifies each challenge's members once "now" has crossed the
  * halfway point between the challenge's `createdAt` and `endsAt`.
- * Challenges with no `endsAt` (open-ended) are skipped — there's no
+ * Challenges with no `endsAt` (open-ended) are skipped - there's no
  * halfway point to compute. Dedup via `halfwayNotifiedAt` on the challenge
  * doc itself, same one-shot-per-value idea as the client's badge/threshold
  * dedupe fields, just stored as "already sent" rather than "sent for which
  * value" since a challenge's `endsAt` doesn't change after creation.
  *
- * Scans the whole `challenges` collection rather than a filtered query —
+ * Scans the whole `challenges` collection rather than a filtered query -
  * simplest option, and fine at this app's scale; revisit with a composite
  * index (`endsAt` range + `halfwayNotifiedAt` equality) if the collection
  * grows large enough for a full scan every hour to matter.
@@ -117,7 +117,7 @@ exports.notifyChallengeHalfway = onSchedule("every 60 minutes", async () => {
         recipientUid: uid,
         type: "challenge_halfway",
         title: data.name,
-        body: `"${data.name}" is halfway through its time — keep it up!`,
+        body: `"${data.name}" is halfway through its time - keep it up!`,
         createdAt: FieldValue.serverTimestamp(),
       });
     }
@@ -128,7 +128,7 @@ exports.notifyChallengeHalfway = onSchedule("every 60 minutes", async () => {
 const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
 // Reminder fires this fraction of the challenge's total duration before
-// endsAt, clamped to a sane range — a 7-day challenge gets ~17h notice, a
+// endsAt, clamped to a sane range - a 7-day challenge gets ~17h notice, a
 // 30-day one gets the 3-day cap rather than a barely-useful ~1h notice.
 const DEADLINE_LEAD_FRACTION = 0.1;
 const DEADLINE_LEAD_MIN_MS = 12 * HOUR_MS;
@@ -136,7 +136,7 @@ const DEADLINE_LEAD_MAX_MS = 3 * DAY_MS;
 
 /**
  * Every hour, notifies each challenge's members once its deadline is
- * close — how close scales with the challenge's own total duration
+ * close - how close scales with the challenge's own total duration
  * (`DEADLINE_LEAD_FRACTION` of createdAt-to-endsAt, clamped between
  * `DEADLINE_LEAD_MIN_MS` and `DEADLINE_LEAD_MAX_MS`) rather than a fixed
  * lead time, so a week-long sprint and a month-long challenge each get a
@@ -177,7 +177,7 @@ exports.notifyChallengeDeadlineApproaching = onSchedule(
             type: "challenge_deadline",
             title: data.name,
             body: `"${data.name}" ends in ${daysLeft} ` +
-              `day${daysLeft === 1 ? "" : "s"} — finish strong!`,
+              `day${daysLeft === 1 ? "" : "s"} - finish strong!`,
             createdAt: FieldValue.serverTimestamp(),
           });
         }
@@ -187,7 +187,7 @@ exports.notifyChallengeDeadlineApproaching = onSchedule(
 );
 
 // Used both as the inactivity threshold and, once a reminder's gone out,
-// as the cooldown before the same counter can trigger another one — so a
+// as the cooldown before the same counter can trigger another one - so a
 // counter left untouched gets nudged about once a week, not every day.
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -196,20 +196,20 @@ const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
  * touched in 7+ days. Counters live as a JSON array embedded in the
  * `counters` field of each `users/{uid}` doc (see
  * lib/services/firestore_counter_storage.dart) rather than as their own
- * documents, so there's no per-counter doc to query — this scans every
+ * documents, so there's no per-counter doc to query - this scans every
  * user doc that has a `counters` array, checks each entry's `updatedAt`,
  * and writes back an updated `lastInactivityReminderAt` per counter
  * (inside that same array field) so the same stale counter doesn't
  * trigger a push every single day.
  *
  * Guest-mode counters (device-local only, never synced to Firestore) are
- * invisible to this — and unreachable by any server-side check, since
+ * invisible to this - and unreachable by any server-side check, since
  * there's nothing in Firestore to scan for them.
  */
 exports.notifyCounterInactivity = onSchedule("every 24 hours", async () => {
   const now = Date.now();
   // Firestore's `!=` doesn't support comparing against `null`, so this
-  // can't be filtered server-side — scan every user doc and skip the ones
+  // can't be filtered server-side - scan every user doc and skip the ones
   // without a `counters` array. Fine at this app's scale; revisit if the
   // user collection grows large enough for a daily full scan to matter.
   const snapshot = await db.collection("users").get();
@@ -244,7 +244,7 @@ exports.notifyCounterInactivity = onSchedule("every 24 hours", async () => {
         recipientUid: doc.id,
         type: "counter_inactivity",
         title: counter.title,
-        body: `You haven't updated "${counter.title}" in a week — ` +
+        body: `You haven't updated "${counter.title}" in a week - ` +
           "still going?",
         createdAt: FieldValue.serverTimestamp(),
       });
@@ -263,7 +263,7 @@ exports.notifyCounterInactivity = onSchedule("every 24 hours", async () => {
 /**
  * Once a day, reminds every member of a group that's had no tally
  * activity in 7+ days. "Activity" is tracked via `lastActivityAt`, bumped
- * by GroupService._touchGroupActivity on every increment/decrement —
+ * by GroupService._touchGroupActivity on every increment/decrement -
  * falls back to the group's `createdAt` for groups that predate that
  * field or have never had a single tally change. Cooldown mirrors the
  * counter-inactivity reminder above: once reminded, waits another 7 days
@@ -297,7 +297,7 @@ exports.notifyGroupQuiet = onSchedule("every 24 hours", async () => {
         recipientUid: uid,
         type: "group_quiet",
         title: data.name,
-        body: `"${data.name}" has been quiet for a week — check in?`,
+        body: `"${data.name}" has been quiet for a week - check in?`,
         createdAt: FieldValue.serverTimestamp(),
       });
     }
@@ -305,20 +305,20 @@ exports.notifyGroupQuiet = onSchedule("every 24 hours", async () => {
   }
 });
 
-// Not a real account — a fixed sentinel `createdBy` for generated official
+// Not a real account - a fixed sentinel `createdBy` for generated official
 // challenges. The old debug "Generate official challenge" button in
 // Settings (settings_page.dart's _GenerateChallengeTile) had to create the
 // challenge under a *real* signed-in account and then immediately remove
 // them as a member, purely to satisfy the client-side rule that
 // `createdBy` must match the creating account (see the note in TODO.md).
 // Cloud Functions write via the Admin SDK, which bypasses security rules
-// entirely, so no such workaround is needed here — and as a side effect,
+// entirely, so no such workaround is needed here - and as a side effect,
 // no real account can accidentally edit or delete what this generates,
 // since no one's `request.auth.uid` will ever equal this string.
 const OFFICIAL_GENERATOR_UID = "official-generator";
 
 // Floor on how many active (not yet ended) official public challenges
-// should exist at once — topped up daily, not tied to a fixed catalog.
+// should exist at once - topped up daily, not tied to a fixed catalog.
 const MIN_ACTIVE_OFFICIAL_CHALLENGES = 10;
 
 const INVITE_CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -346,7 +346,7 @@ async function generateUniqueChallengeCode() {
 // [usedNames] (names currently active among official challenges, updated
 // by the caller as each new one is generated so a single replenish run
 // never picks the same name twice either). Falls back to allowing a
-// repeat rather than blocking replenishment — with 12 names across 8
+// repeat rather than blocking replenishment - with 12 names across 8
 // categories against a floor of 10 active challenges, exhausting every
 // name is essentially impossible, but generation should never hang or
 // throw over a cosmetic collision.
@@ -361,7 +361,7 @@ function pickAvailableCategoryAndName(usedNames) {
 }
 
 // Ports the random-selection logic from settings_page.dart's
-// _GenerateChallengeTile — same category/flavor-name/objective-count/
+// _GenerateChallengeTile - same category/flavor-name/objective-count/
 // duration randomization, just run server-side. Keep the two in sync if
 // the generation "feel" changes on either side.
 async function generateOfficialChallenge(usedNames) {
@@ -403,7 +403,7 @@ async function generateOfficialChallenge(usedNames) {
  * Once a day, tops up the pool of active official public challenges so
  * Explore always has fresh content available, without anyone needing to
  * tap the debug "Generate official challenge" button in Settings. Never
- * generates a challenge whose name matches one already active — see
+ * generates a challenge whose name matches one already active - see
  * pickAvailableCategoryAndName.
  */
 exports.replenishOfficialChallenges = onSchedule(

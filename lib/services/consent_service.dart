@@ -10,15 +10,15 @@ void _log(String message) {
 }
 
 /// Gathers ad-related consent before any ad is ever requested:
-/// 1. Google's User Messaging Platform (UMP) — shows the GDPR/UK consent
+/// 1. Google's User Messaging Platform (UMP) - shows the GDPR/UK consent
 ///    form when required (EEA/UK users), no-ops elsewhere.
-/// 2. iOS App Tracking Transparency — the system permission prompt for
+/// 2. iOS App Tracking Transparency - the system permission prompt for
 ///    cross-app tracking (`NSUserTrackingUsageDescription` is already set
 ///    in Info.plist). No-op on Android.
 /// 3. Only then initializes the Mobile Ads SDK, and only if
 ///    [ConsentInformation.canRequestAds] actually says it's fine to.
 ///
-/// [ensureReady] is idempotent — safe to call from every `AdBanner` that
+/// [ensureReady] is idempotent - safe to call from every `AdBanner` that
 /// mounts; they all await the same in-flight/completed operation.
 class ConsentService {
   Future<void>? _readyFuture;
@@ -42,14 +42,14 @@ class ConsentService {
         _log('calling MobileAds.instance.initialize()');
         final status = await MobileAds.instance.initialize();
         _log(
-          'MobileAds initialized — adapter statuses: '
+          'MobileAds initialized - adapter statuses: '
           '${status.adapterStatuses.map((k, v) => MapEntry(k, v.state))}',
         );
       } catch (e) {
         _log('MobileAds.instance.initialize() threw: $e');
       }
     } else {
-      _log('skipping MobileAds init — canRequestAds() was false');
+      _log('skipping MobileAds init - canRequestAds() was false');
     }
   }
 
@@ -73,7 +73,7 @@ class ConsentService {
       params,
       () async {
         _log(
-          'requestConsentInfoUpdate succeeded — status: '
+          'requestConsentInfoUpdate succeeded - status: '
           '${await ConsentInformation.instance.getConsentStatus()}, '
           'formAvailable: '
           '${await ConsentInformation.instance.isConsentFormAvailable()}',
@@ -89,7 +89,7 @@ class ConsentService {
         });
       },
       (error) => finish(
-        'requestConsentInfoUpdate failed — '
+        'requestConsentInfoUpdate failed - '
         '[${error.errorCode}] ${error.message}',
       ),
     );

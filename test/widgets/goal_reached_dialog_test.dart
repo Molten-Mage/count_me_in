@@ -37,7 +37,7 @@ void main() {
       ),
     );
     await tester.tap(find.text('Open'));
-    // Confetti/scale-in animation — advance rather than pumpAndSettle so we
+    // Confetti/scale-in animation - advance rather than pumpAndSettle so we
     // don't wait out the whole confetti lifetime.
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));

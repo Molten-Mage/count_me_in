@@ -15,7 +15,7 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 }
 
 /// Requests notification permission and keeps the signed-in user's FCM
-/// token saved on their `users/{uid}` doc — the Cloud Functions side reads
+/// token saved on their `users/{uid}` doc - the Cloud Functions side reads
 /// it from there to actually send pushes.
 class PushNotificationService {
   PushNotificationService({FirebaseFirestore? firestore, FirebaseAuth? auth})
@@ -27,7 +27,7 @@ class PushNotificationService {
   bool _listeningForRefresh = false;
 
   /// Call once auth state resolves to a signed-in user. Safe to call more
-  /// than once — a no-op past the first successful setup for a given
+  /// than once - a no-op past the first successful setup for a given
   /// sign-in, and does nothing for guests.
   Future<void> init() async {
     final uid = _auth.currentUser?.uid;
@@ -39,7 +39,7 @@ class PushNotificationService {
 
     // Lets iOS show a system banner for pushes that arrive while the app is
     // foregrounded. Android has no equivalent without a local-notifications
-    // plugin, so foreground pushes on Android are silent for now —
+    // plugin, so foreground pushes on Android are silent for now -
     // acceptable since goal-progress/reminder pushes aren't time-critical.
     await FirebaseMessaging.instance
         .setForegroundNotificationPresentationOptions(

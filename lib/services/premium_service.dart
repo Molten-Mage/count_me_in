@@ -14,7 +14,7 @@ const _premiumPrefsKey = 'debug_is_premium';
 /// "downgrade" button).
 ///
 /// Real purchases aren't wired up yet, so the only way this ever becomes
-/// `true` is through those debug-only toggles — [load] forces it back to
+/// `true` is through those debug-only toggles - [load] forces it back to
 /// `false` outside of debug builds even if a stale value is on disk.
 class PremiumStatus extends ValueNotifier<bool> {
   PremiumStatus() : super(false);
@@ -34,14 +34,14 @@ class PremiumStatus extends ValueNotifier<bool> {
 final premiumStatus = PremiumStatus();
 
 /// Entitlement + free-tier limit logic. [isPremium] always reports `false`
-/// in release builds — swap it for a real check once in-app purchase
+/// in release builds - swap it for a real check once in-app purchase
 /// products are configured in App Store Connect / Play Console and wired up
 /// (e.g. via the `in_app_purchase` package or RevenueCat); the free-tier
 /// limit logic below doesn't depend on how that ends up working.
 class PremiumService {
   static const freeItemLimit = 8;
 
-  // One-time purchase, placeholder price — swap for the real localized
+  // One-time purchase, placeholder price - swap for the real localized
   // price from the store's ProductDetails once IAP products exist (never
   // hardcode a price once that's live; the store is the source of truth
   // for currency/locale).
@@ -70,7 +70,7 @@ class PremiumService {
   ///
   /// Pass [counterCount] when the caller already has counters loaded (e.g.
   /// HomePage's in-memory list) to skip re-fetching them. Omit it to have
-  /// this look counters up itself — only valid for signed-in users, since
+  /// this look counters up itself - only valid for signed-in users, since
   /// Groups and Challenges are unreachable for guests anyway.
   Future<int> countTrackedItems({int? counterCount}) async {
     final counters =

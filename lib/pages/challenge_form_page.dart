@@ -24,7 +24,7 @@ class _ObjectiveInput {
 /// Create-a-challenge and edit-objective-targets share this one form.
 /// [existingChallenge] null = create mode (everything editable). Non-null =
 /// edit mode: name/description/visibility/deadline are shown read-only
-/// (matches what firestore.rules actually lets the creator change — only
+/// (matches what firestore.rules actually lets the creator change - only
 /// `objectives`), objective names/count are fixed, only targets are
 /// editable.
 class ChallengeFormPage extends StatefulWidget {

@@ -1,10 +1,10 @@
 import 'package:count_me_in/services/analytics_service.dart';
 
 /// Records every call instead of touching real Firebase Analytics (which
-/// can't be constructed at all in a plain `flutter test` environment — it
+/// can't be constructed at all in a plain `flutter test` environment - it
 /// touches `FirebaseAnalytics.instance` in its constructor, which throws
 /// without a real Firebase app). Assign to the global `analyticsService` in
-/// `setUp`. Don't restore the real [AnalyticsService] in `tearDown` —
+/// `setUp`. Don't restore the real [AnalyticsService] in `tearDown` -
 /// constructing it throws the same way; each test file already runs in its
 /// own isolate, so there's nothing to leak into other files.
 class FakeAnalyticsLogger implements AnalyticsLogger {

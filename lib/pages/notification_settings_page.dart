@@ -26,7 +26,7 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
           final prefs = snapshot.data!;
           // Individual toggles stay visible but disabled (and keep showing
           // their real stored value, not forced off) while the master
-          // switch is off — so turning it back on restores whatever was
+          // switch is off - so turning it back on restores whatever was
           // set before, same pattern as iOS/Android's own notification
           // settings.
           return ListView(

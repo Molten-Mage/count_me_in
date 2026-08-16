@@ -18,7 +18,7 @@ ChallengeParticipant? _find(List<ChallengeParticipant> participants, String? uid
   return null;
 }
 
-/// Which ranks to show for an objective's standings — always the top 3,
+/// Which ranks to show for an objective's standings - always the top 3,
 /// plus (if the viewer isn't already in the top 3) a small window around
 /// their own rank. Firestore rules has no loop construct so this kind of
 /// "top-N + around me" trick doesn't apply there, but it's the same idea
@@ -36,12 +36,12 @@ List<int> _visibleRanks(int total, int? myRank) {
   return ranks.toList()..sort();
 }
 
-/// Standings for every objective — collapsed by default (just the
+/// Standings for every objective - collapsed by default (just the
 /// objective name + goal), expand to see a compact leaderboard rather than
 /// listing every participant's name up front.
 class ChallengeParticipantsPage extends StatelessWidget {
   final Challenge challenge;
-  // If set, that objective's standings open already expanded — used by the
+  // If set, that objective's standings open already expanded - used by the
   // "jump straight to this objective" shortcut on the detail page.
   final String? initialExpandedObjectiveId;
 

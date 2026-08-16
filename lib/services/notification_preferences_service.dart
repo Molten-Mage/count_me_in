@@ -2,7 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class NotificationPreferences {
-  // Master switch — checked server-side too (functions/index.js), so
+  // Master switch - checked server-side too (functions/index.js), so
   // turning it off is a real kill switch, not just a UI shortcut for
   // flipping the seven type toggles below.
   final bool allEnabled;
@@ -41,7 +41,7 @@ class NotificationPreferences {
 /// Per-user toggles for each push notification type, stored in a
 /// `notificationPrefs` map on the user's `users/{uid}` doc. The Cloud
 /// Functions side (functions/index.js's `PREF_KEY_BY_TYPE`) reads this
-/// same field directly before sending a push — this service only manages
+/// same field directly before sending a push - this service only manages
 /// the client's read/write of it.
 class NotificationPreferencesService {
   NotificationPreferencesService({

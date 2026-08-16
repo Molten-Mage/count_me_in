@@ -34,7 +34,7 @@ abstract class AnalyticsLogger {
 
   Future<void> logThemeChanged(String mode);
 
-  /// The "Get Premium" / "Not now" decision — fired both when reached via
+  /// The "Get Premium" / "Not now" decision - fired both when reached via
   /// Settings and via the free-limit paywall, distinguished by [source].
   Future<void> logPremiumPrompt({
     required String source, // 'settings' or 'free_limit'
@@ -54,7 +54,7 @@ abstract class AnalyticsLogger {
   Future<void> logPurchaseFailed();
 }
 
-/// Thin wrapper around Firebase Analytics — one method per event we track,
+/// Thin wrapper around Firebase Analytics - one method per event we track,
 /// so call sites log intent ("counter was created") instead of knowing
 /// event names/param shapes.
 class AnalyticsService implements AnalyticsLogger {
@@ -151,6 +151,6 @@ class AnalyticsService implements AnalyticsLogger {
 }
 
 /// Swappable in tests (assign a fake [AnalyticsLogger] in `setUp`, restore
-/// the real [AnalyticsService] in `tearDown`) — never reassigned in app
+/// the real [AnalyticsService] in `tearDown`) - never reassigned in app
 /// code.
 AnalyticsLogger analyticsService = AnalyticsService();

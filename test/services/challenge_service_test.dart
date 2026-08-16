@@ -23,7 +23,7 @@ ChallengeService _serviceFor(
 
 // fake_cloud_firestore's snapshot streams don't reliably re-emit after a
 // runTransaction() write (used by tally updates), even though the
-// underlying document is updated correctly — read directly instead of via
+// underlying document is updated correctly - read directly instead of via
 // ChallengeService's stream methods for anything checked right after one.
 Future<Challenge> _getChallenge(
   FakeFirebaseFirestore firestore,

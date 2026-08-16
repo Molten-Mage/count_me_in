@@ -24,7 +24,7 @@ String? _deadlineText(Challenge challenge) {
   return daysLeft <= 0 ? 'Ends today' : 'Ends in $daysLeft d';
 }
 
-/// Objectives + participants + deadline, with no progress line — used for
+/// Objectives + participants + deadline, with no progress line - used for
 /// challenges the viewer hasn't joined yet (Explore), where "my progress"
 /// isn't a meaningful thing to show.
 String _subtitleFor(Challenge challenge) {
@@ -36,7 +36,7 @@ String _subtitleFor(Challenge challenge) {
 }
 
 /// True once the viewer's own tallies have reached every objective that has
-/// a target — `completedAt` is set/cleared transactionally by
+/// a target - `completedAt` is set/cleared transactionally by
 /// ChallengeService whenever a tally change crosses that line, so this is
 /// just reading the stored fact rather than recomputing it.
 bool _isCompletedByMe(ChallengeParticipant? me) => me?.completedAt != null;
@@ -210,7 +210,7 @@ class _MyChallengesTab extends StatelessWidget {
         if (snapshot.hasError) {
           return Center(child: Text('Something went wrong: ${snapshot.error}'));
         }
-        // Finished all your own objectives early — belongs in Completed
+        // Finished all your own objectives early - belongs in Completed
         // now, even though the deadline hasn't passed.
         final entries = (snapshot.data ?? [])
             .where((e) => !e.challenge.hasEnded && !_isCompletedByMe(e.me))
@@ -264,7 +264,7 @@ class _CompletedChallengesTab extends StatelessWidget {
 
   const _CompletedChallengesTab({required this.challengeService});
 
-  // Personal completion date if set, otherwise the challenge's deadline —
+  // Personal completion date if set, otherwise the challenge's deadline -
   // whichever reason a challenge landed in this tab, this is "when it
   // became history" from the viewer's point of view. Only ever called for
   // entries that already passed the tab's inclusion check below, so one of

@@ -1,7 +1,7 @@
 import 'package:count_me_in/models/counter.dart';
 import 'package:count_me_in/services/counter_storage.dart';
 
-/// In-memory [CounterStorage] for widget tests — no SharedPreferences, no
+/// In-memory [CounterStorage] for widget tests - no SharedPreferences, no
 /// Firestore, just a list that mirrors what a real implementation would
 /// persist.
 class FakeCounterStorage implements CounterStorage {

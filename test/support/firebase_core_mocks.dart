@@ -14,7 +14,7 @@ class _FakeFirebaseAppPlatform extends FirebaseAppPlatform {
 }
 
 /// Swaps the platform-interface singleton directly instead of mocking a
-/// method channel — recent firebase_core versions moved app registration
+/// method channel - recent firebase_core versions moved app registration
 /// onto a Pigeon-generated channel with its own binary codec, which is
 /// impractical to hand-mock. [FirebasePlatform.instance] is the documented
 /// seam for exactly this: platform implementations (and, here, tests)
@@ -22,7 +22,7 @@ class _FakeFirebaseAppPlatform extends FirebaseAppPlatform {
 ///
 /// This only fakes the *app registration* handshake, so
 /// `FirebaseAuth.instance` / `FirebaseFirestore.instance` /
-/// `FirebaseAnalytics.instance` field initializers stop throwing — it does
+/// `FirebaseAnalytics.instance` field initializers stop throwing - it does
 /// not fake Auth, Firestore, or Analytics' own platform channels. Widgets
 /// under test still shouldn't call real methods on those instances; inject
 /// `fake_cloud_firestore` / `firebase_auth_mocks` / [FakeAnalyticsLogger]

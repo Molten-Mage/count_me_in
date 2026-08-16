@@ -51,11 +51,9 @@
 			<array>
 				<!-- Custom-scheme deep links (e.g. countmein://join/group/ABC123)
 				     for invite links — see lib/services/deep_link_service.dart.
-				     Once there's a domain and Apple Developer Program
-				     enrollment, this should be replaced/supplemented with real
-				     Universal Links (Associated Domains + hosting
-				     apple-app-site-association) for the full experience,
-				     including an App Store fallback. -->
+				     Kept as a fallback alongside the real Universal Links
+				     (Associated Domains, see Runner.entitlements) served from
+				     https://count-me-in-links.pages.dev/join/... -->
 				<string>countmein</string>
 			</array>
 		</dict>

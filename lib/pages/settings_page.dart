@@ -249,12 +249,12 @@ class SettingsPage extends StatelessWidget {
             if (kDebugMode) ...[
               _ForceCrashTile(
                 label: 'Force native test crash',
-                subtitle: 'Native crash — needs dSYM to symbolicate',
+                subtitle: 'Native crash - needs dSYM to symbolicate',
                 onConfirm: () => FirebaseCrashlytics.instance.crash(),
               ),
               _ForceCrashTile(
                 label: 'Force Dart test crash',
-                subtitle: 'Dart exception — readable without dSYM',
+                subtitle: 'Dart exception - readable without dSYM',
                 onConfirm: () =>
                     throw Exception('Crashlytics Dart test crash'),
               ),
@@ -351,12 +351,12 @@ class SettingsPage extends StatelessWidget {
           if (kDebugMode) ...[
             _ForceCrashTile(
               label: 'Force native test crash',
-              subtitle: 'Native crash — needs dSYM to symbolicate',
+              subtitle: 'Native crash - needs dSYM to symbolicate',
               onConfirm: () => FirebaseCrashlytics.instance.crash(),
             ),
             _ForceCrashTile(
               label: 'Force Dart test crash',
-              subtitle: 'Dart exception — readable without dSYM',
+              subtitle: 'Dart exception - readable without dSYM',
               onConfirm: () => throw Exception('Crashlytics Dart test crash'),
             ),
             const _GenerateChallengeTile(),
@@ -404,7 +404,7 @@ class SettingsPage extends StatelessWidget {
 }
 
 /// Only shown when Google's UMP SDK says the user is somewhere that
-/// requires offering a way to revisit their ad consent choice (EEA/UK) —
+/// requires offering a way to revisit their ad consent choice (EEA/UK) -
 /// Google's policy requires this entry point exist wherever it applies,
 /// not that it always be shown.
 class _PrivacyOptionsTile extends StatelessWidget {
@@ -428,7 +428,7 @@ class _PrivacyOptionsTile extends StatelessWidget {
   }
 }
 
-// TODO: temporary, for verifying Crashlytics reporting end-to-end — remove
+// TODO: temporary, for verifying Crashlytics reporting end-to-end - remove
 // this whole widget (and both usages of it) once confirmed working.
 class _ForceCrashTile extends StatelessWidget {
   final String label;
@@ -468,7 +468,7 @@ class _ForceCrashTile extends StatelessWidget {
 }
 
 // Admin ops tool: generates one random official public challenge per tap,
-// drawn from lib/data/challenge_templates.dart. Not tied to a fixed set —
+// drawn from lib/data/challenge_templates.dart. Not tied to a fixed set -
 // safe to tap repeatedly to build up Explore's pool of official content
 // over time. The generating account is never left as a member of what it
 // creates (see ChallengeService.createOfficialChallenge).

@@ -40,7 +40,7 @@ void main() {
     expect(controller.value, ThemeMode.light);
     expect(fakeAnalytics.events, ['theme_changed:light']);
 
-    // Persisted — a fresh controller loading from the same prefs sees it.
+    // Persisted - a fresh controller loading from the same prefs sees it.
     final reloaded = ThemeController();
     await reloaded.load();
     expect(reloaded.value, ThemeMode.light);

@@ -60,7 +60,7 @@ class _AdBannerState extends State<AdBanner> {
     if (kIsWeb || !(Platform.isAndroid || Platform.isIOS)) return;
 
     // Gathers GDPR/UK (UMP) and iOS tracking (ATT) consent, and only then
-    // initializes the Mobile Ads SDK — must happen before the first ad is
+    // initializes the Mobile Ads SDK - must happen before the first ad is
     // ever requested.
     await consentService.ensureReady();
     if (!mounted) return;
@@ -68,7 +68,7 @@ class _AdBannerState extends State<AdBanner> {
     final width = MediaQuery.sizeOf(context).width.truncate();
     // The non-"large" adaptive size is deprecated in favor of the large
     // one (Google's newer default, picked for better fill/revenue), but
-    // it's still fully functional — used deliberately here for a shorter
+    // it's still fully functional - used deliberately here for a shorter
     // banner instead.
     // ignore: deprecated_member_use
     final size = await AdSize.getCurrentOrientationAnchoredAdaptiveBannerAdSize(

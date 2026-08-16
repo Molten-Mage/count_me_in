@@ -20,16 +20,16 @@ const premiumProductId = 'premium_unlock01';
 /// Wraps the `in_app_purchase` package for the app's one product: a
 /// single non-consumable "Premium" unlock. [buyPremium] only reports
 /// whether the purchase *flow started* (the store's native payment sheet
-/// appeared) — the actual grant happens asynchronously via [init]'s
+/// appeared) - the actual grant happens asynchronously via [init]'s
 /// stream listener, which flips [premiumStatus] once the store confirms.
 ///
 /// Cross-device sync relies entirely on the platform store's own
-/// restore-purchases mechanism (see [restore]) — purchase state isn't
+/// restore-purchases mechanism (see [restore]) - purchase state isn't
 /// mirrored to Firestore, so a signed-in user on a second device still
 /// needs to tap "Restore purchases" once. Doing better than that would
 /// need server-side receipt verification (the App Store Server API, a
 /// Cloud Function, since trusting the client's own write in from here
-/// isn't enough on its own) — deliberately deferred as separate work.
+/// isn't enough on its own) - deliberately deferred as separate work.
 class PurchaseService {
   PurchaseService({InAppPurchase? inAppPurchase})
     : _iap = inAppPurchase ?? InAppPurchase.instance;
@@ -37,7 +37,7 @@ class PurchaseService {
   final InAppPurchase _iap;
   StreamSubscription<List<PurchaseDetails>>? _subscription;
 
-  /// Starts listening for purchase updates — call once, e.g. from
+  /// Starts listening for purchase updates - call once, e.g. from
   /// `main.dart` alongside the app's other service init. Safe to call
   /// more than once; only the first call actually subscribes.
   void init() {
@@ -60,7 +60,7 @@ class PurchaseService {
           break;
         case PurchaseStatus.purchased:
         case PurchaseStatus.restored:
-          // No server-side receipt verification yet (see class doc) —
+          // No server-side receipt verification yet (see class doc) -
           // trusting the platform store's own status here, the same
           // trust boundary the rest of this app's client-driven data
           // already relies on.
@@ -93,7 +93,7 @@ class PurchaseService {
     return response.productDetails.first;
   }
 
-  /// The premium product's localized price straight from the store — null
+  /// The premium product's localized price straight from the store - null
   /// if the store isn't reachable or the product doesn't exist yet (e.g.
   /// no App Store Connect record). Callers should fall back to
   /// [PremiumService.priceLabel] in that case.
@@ -103,7 +103,7 @@ class PurchaseService {
   }
 
   /// Starts the purchase flow. Returns whether it actually started (the
-  /// store's payment sheet was shown) — not whether the purchase itself
+  /// store's payment sheet was shown) - not whether the purchase itself
   /// succeeded, which arrives later via [init]'s stream listener and
   /// shows up as [premiumStatus] flipping to `true`.
   Future<bool> buyPremium() async {

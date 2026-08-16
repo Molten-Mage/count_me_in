@@ -27,12 +27,12 @@ class GroupDetailPage extends StatefulWidget {
 class _GroupDetailPageState extends State<GroupDetailPage> {
   final _groupService = GroupService();
   final _stepController = TextEditingController(text: '1');
-  // Created once rather than inline in build()'s `stream:` argument — a
+  // Created once rather than inline in build()'s `stream:` argument - a
   // fresh Stream instance on every rebuild forces StreamBuilder to
   // unsubscribe and resubscribe, briefly dropping back to its loading
   // state before the new subscription's first snapshot arrives. That
   // subscribe/wait/reconnect cycle, firing on every optimistic setState,
-  // was the actual "blink" — not a display-value race.
+  // was the actual "blink" - not a display-value race.
   late final Stream<Group> _groupStream = _groupService.streamGroup(
     widget.group.id,
   );
@@ -41,12 +41,12 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
   int _currentTotal = 0;
   int? _lastKnownTotal;
   // Displayed immediately on tap, ahead of the member-tally write actually
-  // landing and this page's StreamBuilder catching up — otherwise every
+  // landing and this page's StreamBuilder catching up - otherwise every
   // tap waits on a full round trip before showing anything, which makes
   // rapid tapping feel unresponsive. Keyed by member uid.
   //
   // Cleared reactively in _effectiveTally once the stream's own value
-  // matches the prediction, NOT as soon as the write's Future resolves —
+  // matches the prediction, NOT as soon as the write's Future resolves -
   // that write can be acknowledged before its snapshot listener actually
   // fires, and clearing on "resolved" produced a visible revert-to-old-
   // value flash right before the stream caught up and it jumped forward
@@ -71,7 +71,7 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
     final override = _tallyOverrides[member.uid];
     if (override == null) return member.tally;
     if (override == member.tally) {
-      // The stream has caught up — safe to drop now, displays identically
+      // The stream has caught up - safe to drop now, displays identically
       // either way. No setState: this is cache cleanup, not a value
       // change (this frame renders the same number regardless).
       _tallyOverrides.remove(member.uid);
@@ -82,7 +82,7 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
   void _showSaveError() {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text("Couldn't save — check your connection and try again."),
+        content: Text('Save failed - check your connection and try again.'),
       ),
     );
   }
@@ -155,8 +155,8 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
                   text:
                       'Join my group "${group.name}" on Count Me In! '
                       'Use invite code ${group.code} to join, or tap this '
-                      'link if you already have the app: '
-                      'countmein://join/group/${group.code}',
+                      'link: https://count-me-in-links.pages.dev/join/group/'
+                      '${group.code}',
                 ),
               );
             }
@@ -166,7 +166,7 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const AppDialogTitle('Invite code'),
+                  const AppDialogTitle('Share code'),
                   const SizedBox(height: 8),
                   Text(
                     'Share this code so others can join "${group.name}":',
@@ -400,7 +400,7 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
                     child: const ListTile(
                       contentPadding: EdgeInsets.zero,
                       leading: Icon(Icons.share),
-                      title: Text('Invite code'),
+                      title: Text('Share code'),
                     ),
                   ),
                   PopupMenuItem<VoidCallback>(
@@ -458,7 +458,7 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
                 }
                 final rawMembers = snapshot.data ?? const <GroupMember>[];
                 // Sorted by the real (server-confirmed) tally, not the
-                // optimistic one — an optimistic bump can otherwise reorder
+                // optimistic one - an optimistic bump can otherwise reorder
                 // rows the moment it's applied and again when it's cleared,
                 // shifting whatever the user's mid-tap on out from under
                 // their finger. The displayed number still uses
@@ -467,7 +467,7 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
                   ..sort((a, b) => b.tally.compareTo(a.tally));
                 // `total` (server truth, drives the goal-reached celebration
                 // below) vs `displayTotal` (includes optimistic overrides,
-                // what's actually shown) — kept separate so a celebration
+                // what's actually shown) - kept separate so a celebration
                 // never fires ahead of the write it's celebrating actually
                 // landing.
                 int total = 0;

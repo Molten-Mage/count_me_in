@@ -33,7 +33,7 @@ ChallengeParticipant? _findMe(
 }
 
 /// True once the viewer's own tallies have reached every objective that has
-/// a target — `completedAt` is set/cleared transactionally by
+/// a target - `completedAt` is set/cleared transactionally by
 /// ChallengeService whenever a tally change crosses that line, so this is
 /// just reading the stored fact rather than recomputing it.
 bool _isCompletedByMe(ChallengeParticipant? me) => me?.completedAt != null;
@@ -67,12 +67,12 @@ class ChallengeDetailPage extends StatefulWidget {
 class _ChallengeDetailPageState extends State<ChallengeDetailPage> {
   final _challengeService = ChallengeService();
   final Map<String, TextEditingController> _stepControllers = {};
-  // Created once rather than inline in build()'s `stream:` argument — a
+  // Created once rather than inline in build()'s `stream:` argument - a
   // fresh Stream instance on every rebuild forces StreamBuilder to
   // unsubscribe and resubscribe, briefly dropping back to its loading
   // state before the new subscription's first snapshot arrives. That
   // subscribe/wait/reconnect cycle, firing on every optimistic setState,
-  // was the actual "blink" — not a display-value race.
+  // was the actual "blink" - not a display-value race.
   late final Stream<Challenge> _challengeStream = _challengeService
       .streamChallenge(widget.challenge.id);
   late final Stream<List<ChallengeParticipant>> _participantsStream =
@@ -81,14 +81,14 @@ class _ChallengeDetailPageState extends State<ChallengeDetailPage> {
   // challenge that was already complete before this page opened.
   bool? _wasCompletedByMe;
   // Displayed immediately on tap, ahead of the objective-tally write
-  // actually landing and this page's StreamBuilder catching up —
+  // actually landing and this page's StreamBuilder catching up -
   // otherwise every tap waits on a full round trip before showing
   // anything, which is what made incrementing one objective then
   // immediately tapping another look like the whole page was reloading.
   // Keyed by objective id.
   //
   // Cleared reactively in _effectiveTally once the stream's own value
-  // matches the prediction, NOT as soon as the write's Future resolves —
+  // matches the prediction, NOT as soon as the write's Future resolves -
   // that write can be acknowledged before its snapshot listener actually
   // fires, and clearing on "resolved" produced a visible revert-to-old-
   // value flash right before the stream caught up and it jumped forward
@@ -97,7 +97,7 @@ class _ChallengeDetailPageState extends State<ChallengeDetailPage> {
   // predicted, so the display doesn't get stuck on a stale guess forever.
   //
   // Completion (`completedAt`) deliberately isn't predicted the same way
-  // — it stays server-truth-driven via `_trackCompletion`, so the
+  // - it stays server-truth-driven via `_trackCompletion`, so the
   // completed-challenge celebration never fires ahead of the server
   // actually confirming it.
   final Map<String, int> _tallyOverrides = {};
@@ -115,7 +115,7 @@ class _ChallengeDetailPageState extends State<ChallengeDetailPage> {
     if (override == null) return me?.tallyFor(objectiveId) ?? 0;
     final real = me?.tallyFor(objectiveId) ?? 0;
     if (override == real) {
-      // The stream has caught up — safe to drop now, displays identically
+      // The stream has caught up - safe to drop now, displays identically
       // either way. No setState: this is cache cleanup, not a value
       // change (this frame renders the same number regardless).
       _tallyOverrides.remove(objectiveId);
@@ -131,7 +131,7 @@ class _ChallengeDetailPageState extends State<ChallengeDetailPage> {
   void _showSaveError() {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text("Couldn't save — check your connection and try again."),
+        content: Text('Save failed - check your connection and try again.'),
       ),
     );
   }
@@ -306,8 +306,8 @@ class _ChallengeDetailPageState extends State<ChallengeDetailPage> {
                   text:
                       'Join my challenge "${challenge.name}" on Count Me In! '
                       'Use invite code ${challenge.code} to join, or tap this '
-                      'link if you already have the app: '
-                      'countmein://join/challenge/${challenge.code}',
+                      'link: https://count-me-in-links.pages.dev/join/challenge/'
+                      '${challenge.code}',
                 ),
               );
             }
@@ -317,7 +317,7 @@ class _ChallengeDetailPageState extends State<ChallengeDetailPage> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const AppDialogTitle('Invite code'),
+                  const AppDialogTitle('Share code'),
                   const SizedBox(height: 8),
                   Text(
                     'Share this code so others can join "${challenge.name}":',
@@ -393,8 +393,8 @@ class _ChallengeDetailPageState extends State<ChallengeDetailPage> {
       context,
       title: 'Reset progress',
       message:
-          'Are you sure you want to reset all of your objective tallies '
-          'in "${challenge.name}" back to zero? This can\'t be undone.',
+          'Are you sure you want to reset all of your objective tallies in '
+          '"${challenge.name}" back to zero?',
       confirmLabel: 'Reset',
       onConfirm: () => _resetAll(challenge),
     );
@@ -406,7 +406,7 @@ class _ChallengeDetailPageState extends State<ChallengeDetailPage> {
       title: 'Reset objective',
       message:
           'Are you sure you want to reset your tally for '
-          '"${objective.name}" back to zero? This can\'t be undone.',
+          '"${objective.name}" back to zero?',
       confirmLabel: 'Reset',
       onConfirm: () => _resetObjective(challenge, objective),
     );
@@ -491,7 +491,7 @@ class _ChallengeDetailPageState extends State<ChallengeDetailPage> {
                     child: const ListTile(
                       contentPadding: EdgeInsets.zero,
                       leading: Icon(Icons.share),
-                      title: Text('Invite code'),
+                      title: Text('Share code'),
                     ),
                   ),
                   if (isMember)
@@ -707,7 +707,7 @@ class _ChallengeHeader extends StatelessWidget {
 
 class _ObjectiveCard extends StatelessWidget {
   final ChallengeObjective objective;
-  // Already resolved by the parent via _effectiveTally — includes any
+  // Already resolved by the parent via _effectiveTally - includes any
   // optimistic override still in flight for this objective.
   final int myTally;
   final bool canEdit;
@@ -774,7 +774,7 @@ class _ObjectiveCard extends StatelessWidget {
                 ),
               ),
               // Always present (just disabled at zero) rather than
-              // conditionally shown/hidden — an optimistic tally update and
+              // conditionally shown/hidden - an optimistic tally update and
               // the stream value briefly disagreeing about the zero
               // boundary would otherwise make this icon flicker in and out,
               // shifting the stepper beside it.

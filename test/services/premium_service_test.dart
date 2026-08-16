@@ -37,7 +37,7 @@ void main() {
     return PremiumService(
       auth: MockFirebaseAuth(),
       // Guests can't reach Groups/Challenges, so these are never touched
-      // in the guest path — real defaults would throw if they were.
+      // in the guest path - real defaults would throw if they were.
       groupService: GroupService(
         firestore: firestore,
         auth: MockFirebaseAuth(signedIn: true, mockUser: MockUser(uid: 'unused')),
@@ -63,14 +63,14 @@ void main() {
     });
   });
 
-  group('countTrackedItems — guest (no signed-in user)', () {
+  group('countTrackedItems - guest (no signed-in user)', () {
     test('counts only the given counterCount, skipping groups/challenges', () async {
       final total = await guestService().countTrackedItems(counterCount: 3);
       expect(total, 3);
     });
   });
 
-  group('countTrackedItems — signed in', () {
+  group('countTrackedItems - signed in', () {
     test('sums counters + groups + joined-and-not-completed challenges', () async {
       final uid = 'u1';
       final service = serviceFor(uid);
@@ -132,7 +132,7 @@ void main() {
         objectives: const [(name: 'Reading', target: 10)],
       );
 
-      // A different, uninvolved user should see 0 — they never joined it.
+      // A different, uninvolved user should see 0 - they never joined it.
       final total = await serviceFor('u2').countTrackedItems(counterCount: 0);
       expect(total, 0);
     });

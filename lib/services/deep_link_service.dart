@@ -18,17 +18,20 @@ void _log(String message) {
 
 enum _JoinKind { group, challenge }
 
-/// Handles `countmein://join/group/{code}` and `countmein://join/challenge/
-/// {code}` links: auto-joins the group/challenge and opens its detail page
-/// inside the relevant tab.
+/// Handles both `https://count-me-in-links.pages.dev/join/{kind}/{code}`
+/// (Universal Links on iOS, App Links on Android) and the
+/// `countmein://join/{kind}/{code}` custom-scheme fallback: auto-joins the
+/// group/challenge and opens its detail page inside the relevant tab.
 ///
-/// Uses a custom URL scheme for now rather than Universal/App Links, since
-/// those need a domain plus — on iOS — the Apple Developer Program, neither
-/// of which exist yet. The path structure (`/join/{kind}/{code}`) and all
-/// the routing logic below only ever reads [Uri.pathSegments], never the
-/// scheme or host, specifically so it doesn't need to change later: moving
-/// to real `https://` links is purely a matter of hosting the association
-/// files and registering Associated Domains / App Links.
+/// The routing logic below only ever reads [Uri.pathSegments], never the
+/// scheme or host, so it handles both link forms identically. The
+/// association files that make the real links work are hosted on Cloudflare
+/// Pages (apple-app-site-association, .well-known/assetlinks.json) rather
+/// than the app's own molten-mage.github.io site - GitHub Pages can't serve
+/// a custom Content-Type for that extension-less file, and iOS's Universal
+/// Links verification needs it served as application/json. The
+/// entitlement/manifest wiring is in ios/Runner/Runner.entitlements and
+/// AndroidManifest.xml.
 class DeepLinkService {
   ({_JoinKind kind, String code})? _pendingJoin;
 
@@ -48,7 +51,7 @@ class DeepLinkService {
     );
   }
 
-  /// Call whenever auth state resolves to a signed-in user — completes a
+  /// Call whenever auth state resolves to a signed-in user - completes a
   /// join that arrived (or was tapped) before the user was signed in. Safe
   /// to call anytime; a no-op unless a join is actually pending.
   void retryPendingJoin() {
@@ -73,7 +76,7 @@ class DeepLinkService {
 
   void _startJoin(_JoinKind kind, String code) {
     if (FirebaseAuth.instance.currentUser == null) {
-      _log('not signed in yet — deferring join for code $code');
+      _log('not signed in yet - deferring join for code $code');
       _pendingJoin = (kind: kind, code: code);
       return;
     }
@@ -150,7 +153,7 @@ class DeepLinkService {
   }
 
   /// Switches to the given tab and waits for its Navigator to actually be
-  /// attached — needed on cold start, where the link can arrive before
+  /// attached - needed on cold start, where the link can arrive before
   /// `MainShell` has built at all.
   Future<NavigatorState?> _awaitNavigator(
     int tabIndex,

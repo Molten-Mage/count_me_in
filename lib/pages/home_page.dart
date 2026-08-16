@@ -93,7 +93,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   /// Saves the already-applied optimistic `_counters` state, rolling back
-  /// to [previous] and surfacing an error if the save fails — every
+  /// to [previous] and surfacing an error if the save fails - every
   /// mutation method below updates `_counters` via `setState` first, then
   /// calls this, so the UI never waits on the network to reflect a change.
   /// Returns whether the save succeeded, so callers can skip follow-up
@@ -108,7 +108,7 @@ class _HomePageState extends State<HomePage> {
       setState(() => _counters = previous);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text("Couldn't save — check your connection and try again."),
+          content: Text('Save failed - check your connection and try again.'),
         ),
       );
       return false;
@@ -274,7 +274,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _reorderCounters(int oldIndex, int newIndex) async {
-    // A defensive copy, not just a reference — removeAt/insert below
+    // A defensive copy, not just a reference - removeAt/insert below
     // mutate _counters in place, which would otherwise leave `previous`
     // pointing at the same (already-reordered) list.
     final previous = List<Counter>.of(_counters);

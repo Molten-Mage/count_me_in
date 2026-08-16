@@ -4,7 +4,7 @@ service cloud.firestore {
   match /databases/{database}/documents {
     // Challenge objective ids are always 'obj_0'..'obj_9' (assigned by
     // index at creation, capped at maxChallengeObjectives in
-    // lib/models/challenge.dart) — enumerable, so per-value bounds can be
+    // lib/models/challenge.dart) - enumerable, so per-value bounds can be
     // checked without a loop (Firestore rules has no loop construct).
     function challengeObjectiveIds() {
       return ['obj_0', 'obj_1', 'obj_2', 'obj_3', 'obj_4', 'obj_5', 'obj_6', 'obj_7', 'obj_8', 'obj_9'];
@@ -37,7 +37,7 @@ service cloud.firestore {
 
     // Fan-out target for push notifications (see functions/index.js, which
     // consumes these via the Admin SDK and therefore bypasses these rules
-    // entirely — this only governs the one client-side writer, the group
+    // entirely - this only governs the one client-side writer, the group
     // 80%-threshold check in GroupService). No client ever reads, updates,
     // or deletes these; the Cloud Function deletes each doc once handled.
     match /pushNotifications/{id} {
@@ -58,7 +58,7 @@ service cloud.firestore {
         && request.auth.uid == request.resource.data.createdBy;
       // Anyone signed in can join (adds only their own uid to memberIds).
       // Any current member can leave on their own (memberIds shrinks by
-      // exactly their own uid) — used for account deletion too. Only the
+      // exactly their own uid) - used for account deletion too. Only the
       // creator can remove OTHER members, or edit the group's name/target.
       // Any current member can award a badge (badges-only change) when
       // their increment crosses the group's goal.
@@ -100,7 +100,7 @@ service cloud.firestore {
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['badges'])
           )
           // Any current member can bump the group's activity timestamp
-          // (and clear any pending "gone quiet" reminder) — see
+          // (and clear any pending "gone quiet" reminder) - see
           // GroupService._touchGroupActivity, called on every tally
           // change. Read by the notifyGroupQuiet Cloud Function.
           || (
@@ -133,11 +133,11 @@ service cloud.firestore {
         // own doc. In an admin-controlled group only the group's creator
         // can update any member's doc, including their own. Either the
         // `tally` field changes (kept a non-negative int within a sane
-        // bound — previously any value, including negative or unbounded,
+        // bound - previously any value, including negative or unbounded,
         // was accepted here with no server-side check, relying only on the
         // app's client-side clamping; keep this bound in sync with
-        // `maxCounterInput` in lib/widgets/app_dialog.dart), or — as a
-        // separate write, from GroupService._maybeNotifyThreshold — just
+        // `maxCounterInput` in lib/widgets/app_dialog.dart), or - as a
+        // separate write, from GroupService._maybeNotifyThreshold - just
         // `notifiedThresholdFor` changes, recording that this member's
         // 80%-of-target push notification has already gone out.
         allow update: if request.auth != null
@@ -226,11 +226,11 @@ service cloud.firestore {
 
         // Self-service (no admin-controlled variant): `tallies` (bounded)
         // and `completedAt` (set/cleared alongside it, as the client
-        // crosses/un-crosses "every targeted objective reached" — via a
+        // crosses/un-crosses "every targeted objective reached" - via a
         // tally change, a full reset, or a single-objective reset) may
         // change, and no more updates once the challenge's deadline (if
         // any) has passed. Separately, the challenge's creator may update
-        // just `completedAt` on *any* participant — from
+        // just `completedAt` on *any* participant - from
         // ChallengeService._recomputeCompletionForAllParticipants,
         // re-checking everyone against a target edit that just changed
         // what "complete" even means, with no deadline gate (the point is

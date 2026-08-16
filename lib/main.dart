@@ -34,7 +34,7 @@ void main() async {
 
   await themeController.load();
   await premiumStatus.load();
-  // Listens for purchase updates for the rest of the app's lifetime —
+  // Listens for purchase updates for the rest of the app's lifetime -
   // safe to start even though no real product exists in App Store Connect
   // yet, since it just sits idle until a purchase is ever initiated.
   purchaseService.init();
@@ -47,9 +47,9 @@ void main() async {
 
   // Ad consent gathering + Mobile Ads SDK init now happens lazily, gated
   // behind GDPR/ATT consent, the first time an AdBanner actually mounts
-  // (see ConsentService) — not unconditionally at startup.
+  // (see ConsentService) - not unconditionally at startup.
 
-  // Not awaited — starts listening for incoming invite links in the
+  // Not awaited - starts listening for incoming invite links in the
   // background. If one arrives before auth resolves, it's queued and
   // completed by AuthGate once the user is signed in.
   deepLinkService.init();
@@ -70,8 +70,8 @@ class MyApp extends StatelessWidget {
           theme: _buildTheme(Brightness.light),
           darkTheme: _buildTheme(Brightness.dark),
           themeMode: themeMode,
-          // Pins the ad banner above every route the app ever shows —
-          // including pages pushed on top of MainShell — rather than just
+          // Pins the ad banner above every route the app ever shows -
+          // including pages pushed on top of MainShell - rather than just
           // MainShell's own body, which pushed pages would otherwise cover
           // completely since routes stack full-screen and opaque.
           builder: (context, child) {

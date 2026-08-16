@@ -8,7 +8,7 @@ import 'confetti_overlay.dart';
 
 /// Shows a celebratory popup for a newly reached goal, with a confetti
 /// burst, and lets the user immediately set a new target. Used for both
-/// personal counters and group goals — [source] ('counter' or 'group')
+/// personal counters and group goals - [source] ('counter' or 'group')
 /// tags which, for analytics.
 Future<void> showGoalReachedDialog(
   BuildContext context, {

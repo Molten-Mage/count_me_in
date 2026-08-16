@@ -9,7 +9,7 @@ class ObjectiveTemplate {
 }
 
 /// A themed pool of objectives, reusable names, and reusable descriptions
-/// the admin "generate a challenge" tool draws from — see
+/// the admin "generate a challenge" tool draws from - see
 /// lib/pages/settings_page.dart's `_GenerateChallengeTile`. Descriptions
 /// are picked independently of the flavor name, so two challenges from the
 /// same category (a likely occurrence once several get generated) don't
@@ -46,8 +46,8 @@ const challengeCategories = [
       'Burn It Up',
     ],
     descriptions: [
-      'A fitness sampler — a little of everything.',
-      'Movement, your way — mix and match as you go.',
+      'A fitness sampler - a little of everything.',
+      'Movement, your way - mix and match as you go.',
       'Get the body moving, one rep at a time.',
     ],
     objectives: [

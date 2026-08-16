@@ -9,7 +9,7 @@ import '../support/fake_analytics_logger.dart';
 
 // fake_cloud_firestore's snapshot streams don't reliably re-emit after a
 // runTransaction() write (used by the badge-awarding logic), even though
-// the underlying document is updated correctly — read directly instead of
+// the underlying document is updated correctly - read directly instead of
 // via GroupService's streamGroup() for anything checked right after one.
 Future<Group> _getGroup(FakeFirebaseFirestore firestore, String groupId) async {
   final doc = await firestore.collection('groups').doc(groupId).get();

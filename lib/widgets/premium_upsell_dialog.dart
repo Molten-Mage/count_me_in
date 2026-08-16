@@ -6,7 +6,7 @@ import '../services/premium_service.dart';
 import '../services/purchase_service.dart';
 import 'app_dialog.dart';
 
-/// The actual sales pitch — positive framing, no mention of limits. Shown
+/// The actual sales pitch - positive framing, no mention of limits. Shown
 /// after tapping "Get Premium" on [showPaywallDialog], and directly from
 /// Settings' "Get Premium" button, which has no limit-hit context to show.
 /// [source] ('settings' or 'free_limit') tags which, for analytics.
@@ -18,7 +18,7 @@ Future<void> showPremiumUpsellDialog(
     context: context,
     builder: (dialogContext) {
       // Captured once per dialog instance (StatefulBuilder's own rebuilds
-      // don't re-run this outer closure) — same pattern as the invite
+      // don't re-run this outer closure) - same pattern as the invite
       // dialogs' `justCopied` flag elsewhere in this app.
       var isPurchasing = false;
 
@@ -39,7 +39,7 @@ Future<void> showPremiumUpsellDialog(
             }
 
             // Only reports whether the store's native payment sheet
-            // actually appeared — the real grant lands later via
+            // actually appeared - the real grant lands later via
             // PurchaseService's stream listener flipping premiumStatus,
             // which the rest of the app (ad banner, item limits) already
             // reacts to on its own.
@@ -51,7 +51,7 @@ Future<void> showPremiumUpsellDialog(
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
                   content: Text(
-                    "Purchases aren't available right now — check back soon!",
+                    "Purchases aren't available right now - check back soon!",
                   ),
                 ),
               );

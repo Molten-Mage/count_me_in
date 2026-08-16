@@ -1,4 +1,4 @@
-// Mirrors lib/data/challenge_templates.dart — keep both in sync if the
+// Mirrors lib/data/challenge_templates.dart - keep both in sync if the
 // template pool changes. Duplicated here (rather than shared) because
 // Cloud Functions run on Node, not Dart; there's no cross-runtime way to
 // share this data source.
@@ -20,8 +20,8 @@ const challengeCategories = [
       "Burn It Up",
     ],
     descriptions: [
-      "A fitness sampler — a little of everything.",
-      "Movement, your way — mix and match as you go.",
+      "A fitness sampler - a little of everything.",
+      "Movement, your way - mix and match as you go.",
       "Get the body moving, one rep at a time.",
     ],
     objectives: [

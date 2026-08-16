@@ -26,14 +26,14 @@ class Counter {
   final List<CounterBadge> badges;
   final DateTime createdAt;
   // Bumped whenever `count` actually changes (increment, decrement, or
-  // reset) — not on title/notes edits. Read by the counter-inactivity
+  // reset) - not on title/notes edits. Read by the counter-inactivity
   // reminder Cloud Function to find counters nobody's touched in a while.
   final DateTime updatedAt;
   // Set only by that Cloud Function (functions/index.js), never by the
-  // client — carried through copyWith/withDetails unchanged so a save
+  // client - carried through copyWith/withDetails unchanged so a save
   // triggered by editing one counter doesn't wipe this bookkeeping field
   // off every other counter in the same account (all counters live in one
-  // array field on the user doc, saved as a whole — see
+  // array field on the user doc, saved as a whole - see
   // lib/services/firestore_counter_storage.dart).
   final DateTime? lastInactivityReminderAt;
 
@@ -89,7 +89,7 @@ class Counter {
       notes: notes ?? this.notes,
       badges: badges ?? this.badges,
       createdAt: createdAt,
-      // Only bumped when `count` itself is actually changing — editing
+      // Only bumped when `count` itself is actually changing - editing
       // notes/badges alone shouldn't reset the inactivity clock.
       updatedAt: count != null ? DateTime.now() : updatedAt,
       lastInactivityReminderAt: lastInactivityReminderAt,

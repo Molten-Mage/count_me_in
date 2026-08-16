@@ -13,7 +13,7 @@ typedef ChallengeWithParticipation = ({Challenge challenge, ChallengeParticipant
 
 /// Runs a best-effort side effect (leaderboard-passed notifications)
 /// without letting a failure there look like the tally write itself
-/// failed — the UI's optimistic-update rollback should only trigger for a
+/// failed - the UI's optimistic-update rollback should only trigger for a
 /// genuine failure to save the user's own tally.
 Future<void> _bestEffort(String label, Future<void> Function() action) async {
   try {
@@ -60,7 +60,7 @@ class ChallengeService {
         );
   }
 
-  /// Public challenges, including ones the caller has already joined — the
+  /// Public challenges, including ones the caller has already joined - the
   /// UI is responsible for filtering those out of "Explore".
   Stream<List<Challenge>> streamPublicChallenges() {
     return _challenges
@@ -94,7 +94,7 @@ class ChallengeService {
         );
   }
 
-  /// The signed-in user's own participation in a challenge — null if they
+  /// The signed-in user's own participation in a challenge - null if they
   /// haven't joined. Used to detect personal completion (every objective
   /// with a target reached) independent of the challenge's deadline.
   Stream<ChallengeParticipant?> streamMyParticipant(String challengeId) {
@@ -112,7 +112,7 @@ class ChallengeService {
 
   /// Each of the caller's challenges paired with their own participation
   /// record. Needed wherever the UI has to sort or filter using data that
-  /// only lives on the participant doc (e.g. personal `completedAt`) —
+  /// only lives on the participant doc (e.g. personal `completedAt`) -
   /// [streamMyChallenges] alone can't provide that since it only reads
   /// challenge-level documents.
   Stream<List<ChallengeWithParticipation>> streamMyChallengesWithParticipation() {
@@ -154,7 +154,7 @@ class ChallengeService {
     required ChallengeVisibility visibility,
     DateTime? endsAt,
     required List<({String name, int? target})> objectives,
-    // Not exposed in the normal create-challenge UI — only used for
+    // Not exposed in the normal create-challenge UI - only used for
     // curated challenges we seed ourselves.
     bool isOfficial = false,
   }) async {
@@ -210,12 +210,12 @@ class ChallengeService {
   }
 
   /// Creates a public, official challenge without the creating account
-  /// ending up a member of it — these are meant to be pure content for
+  /// ending up a member of it - these are meant to be pure content for
   /// other people to join, not something the generating (admin) account
   /// is actually part of. Firestore rules require `memberIds` to be
   /// exactly `[creator]` at creation time, so this creates normally via
   /// [createChallenge] and then removes the creator in a follow-up write,
-  /// rather than [leaveChallenge] — which would instead delete the whole
+  /// rather than [leaveChallenge] - which would instead delete the whole
   /// challenge, since it treats "creator, last member" as "nobody wants
   /// this anymore" rather than "this was never meant to have them in it".
   Future<Challenge> createOfficialChallenge({
@@ -246,7 +246,7 @@ class ChallengeService {
   /// restrict this to the challenge's creator. A target edit can push any
   /// participant into or out of "complete" without their tallies changing
   /// at all, so this also recomputes `completedAt` for every participant
-  /// against the new targets — unlike a tally change, which only ever
+  /// against the new targets - unlike a tally change, which only ever
   /// needs to re-check the one person whose tally just moved.
   Future<void> updateObjectiveTargets(
     String challengeId,
@@ -259,7 +259,7 @@ class ChallengeService {
     await _recomputeCompletionForAllParticipants(challengeRef, objectives);
   }
 
-  /// True once every objective with a target is met by [tallies] — the
+  /// True once every objective with a target is met by [tallies] - the
   /// single completion rule shared by tally changes, target edits, and
   /// resets, so all three ways `completedAt` can change agree with each
   /// other.
@@ -269,7 +269,7 @@ class ChallengeService {
         targeted.every((o) => (tallies[o.id] ?? 0) >= o.target!);
   }
 
-  /// Not a transaction — reading every participant plus writing back only
+  /// Not a transaction - reading every participant plus writing back only
   /// the ones whose `completedAt` actually changed isn't something a
   /// target edit needs strict atomicity for (unlike a single participant's
   /// own tally change racing against itself), so plain reads/writes keep
@@ -414,7 +414,7 @@ class ChallengeService {
   }
 
   /// The same overall-percent metric shown as each participant's progress
-  /// in challenge_detail_page.dart / challenge_participants_page.dart —
+  /// in challenge_detail_page.dart / challenge_participants_page.dart -
   /// the average, across every objective that has a target, of that
   /// objective's tally-over-target (clamped to 100%).
   double _percentComplete(List<ChallengeObjective> targeted, Map<String, int> tallies) {
@@ -425,12 +425,12 @@ class ChallengeService {
     return total / targeted.length;
   }
 
-  /// After an objective tally increases (never fires on decrements — a
+  /// After an objective tally increases (never fires on decrements - a
   /// drop can't be described as "passing" anyone), checks whether the
   /// acting participant's overall percent-complete now exceeds another
   /// participant's when it didn't just before this change, and notifies
   /// whoever got passed. "Before" is derived arithmetically by undoing
-  /// [delta] on [objectiveId] rather than re-reading — cheaper, and this
+  /// [delta] on [objectiveId] rather than re-reading - cheaper, and this
   /// only ever gets called right after that exact delta was applied.
   /// Runs as plain reads/writes rather than a transaction: a missed or
   /// duplicate "just passed you" push under rare concurrent updates isn't
@@ -491,7 +491,7 @@ class ChallengeService {
 
   /// Applies a signed delta to one objective's tally (clamped at zero), and
   /// sets or clears `completedAt` on the false<->true transition of "every
-  /// targeted objective reached" — the single source of truth other code
+  /// targeted objective reached" - the single source of truth other code
   /// reads instead of recomputing completion from raw tallies each time.
   Future<void> _applyTallyDelta(
     String challengeId,
@@ -529,7 +529,7 @@ class ChallengeService {
 
   /// Removes the current user from the challenge. If they're the creator,
   /// ownership transfers to the longest-standing remaining member, or the
-  /// whole challenge is deleted if no other members remain — same pattern
+  /// whole challenge is deleted if no other members remain - same pattern
   /// as leaving a group.
   Future<void> leaveChallenge(String challengeId) async {
     await analyticsService.logChallengeLeft();

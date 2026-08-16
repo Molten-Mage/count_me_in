@@ -59,7 +59,7 @@ class AppDialogTitle extends StatelessWidget {
 }
 
 /// Side-by-side outlined/filled action row, or a single full-width filled
-/// button when there's no secondary action — matching the celebration popup.
+/// button when there's no secondary action - matching the celebration popup.
 class AppDialogActions extends StatelessWidget {
   final String? secondaryLabel;
   final VoidCallback? onSecondary;

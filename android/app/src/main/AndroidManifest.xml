@@ -32,15 +32,33 @@
             </intent-filter>
             <!-- Custom-scheme deep links (e.g. countmein://join/group/ABC123)
                  for invite links — see lib/services/deep_link_service.dart.
-                 Once there's a domain, this should be replaced/supplemented
-                 with real App Links (android:autoVerify="true" + hosting
-                 assetlinks.json) for the full experience, including a Play
-                 Store fallback. -->
+                 Kept as a fallback alongside the real App Links below. -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
                 <category android:name="android.intent.category.BROWSABLE"/>
                 <data android:scheme="countmein"/>
+            </intent-filter>
+            <!-- Real App Links, verified via assetlinks.json hosted at
+                 https://count-me-in-links.pages.dev/.well-known/assetlinks.json
+                 (Cloudflare Pages, not the app's own molten-mage.github.io site —
+                 GitHub Pages can't serve a custom Content-Type for an
+                 extension-less file, which apple-app-site-association requires
+                 to be application/json; Cloudflare Pages' _headers file can) —
+                 lets invite links open the app directly without needing the
+                 countmein:// scheme, and falls back to the landing page at
+                 that URL if the app isn't installed. NOTE: assetlinks.json
+                 currently declares package_name "com.example.count_me_in"
+                 (the applicationId below) — update it there if that ever
+                 changes. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data
+                    android:scheme="https"
+                    android:host="count-me-in-links.pages.dev"
+                    android:pathPrefix="/join"/>
             </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.

@@ -10,7 +10,7 @@ import 'analytics_service.dart';
 
 /// Runs a best-effort side effect (badge-awarding, push notifications,
 /// activity tracking) without letting a failure there look like the tally
-/// write itself failed — those are all secondary to the tally update, and
+/// write itself failed - those are all secondary to the tally update, and
 /// the UI's optimistic-update rollback should only trigger for a genuine
 /// failure to save the user's own tally.
 Future<void> _bestEffort(String label, Future<void> Function() action) async {
@@ -277,7 +277,7 @@ class GroupService {
   }
 
   /// Marks the group as recently active and clears any pending "gone
-  /// quiet" reminder — called on every tally change (increment or
+  /// quiet" reminder - called on every tally change (increment or
   /// decrement) by any member. Read by the `notifyGroupQuiet` scheduled
   /// Cloud Function (functions/index.js) to find groups nobody's touched
   /// in a while; clearing `quietNotifiedAt` here (rather than only ever
@@ -381,7 +381,7 @@ class GroupService {
         'badges': updatedBadges.map((b) => b.toFirestore()).toList(),
       });
 
-      // Everyone but whoever's tally just crossed the line gets a push —
+      // Everyone but whoever's tally just crossed the line gets a push -
       // they already see the in-app celebration dialog immediately.
       final notifications = _firestore.collection('pushNotifications');
       for (final recipientUid in group.memberIds) {
@@ -390,7 +390,7 @@ class GroupService {
           'recipientUid': recipientUid,
           'type': 'group_goal_reached',
           'title': group.name,
-          'body': 'Goal reached — $total/$target!',
+          'body': 'Goal reached - $total/$target!',
           'createdAt': FieldValue.serverTimestamp(),
         });
       }

@@ -14,7 +14,7 @@ import '../services/analytics_service.dart';
 import '../widgets/tally_icon.dart';
 import 'privacy_policy_page.dart';
 
-/// Whether to offer "Sign in with Apple" — only relevant on Apple platforms
+/// Whether to offer "Sign in with Apple" - only relevant on Apple platforms
 /// (and the entitlement is only configured for iOS/macOS builds).
 bool get _supportsAppleSignIn =>
     !kIsWeb && (Platform.isIOS || Platform.isMacOS);
@@ -362,8 +362,8 @@ class _LoginPageState extends State<LoginPage> {
         ),
         const SizedBox(height: 8),
         Text(
-          "Your counters will be stored only on this device — they "
-          "won't sync, back up, or support group goals.",
+          "Your counters will be stored only on this device, no backup. "
+          "Limited app features.",
           textAlign: TextAlign.center,
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
             color: Theme.of(context).colorScheme.onSurfaceVariant,
