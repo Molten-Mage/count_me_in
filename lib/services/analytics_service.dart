@@ -46,6 +46,12 @@ abstract class AnalyticsLogger {
   Future<void> logSignOut();
 
   Future<void> logAccountDeleted();
+
+  /// [restored] distinguishes a fresh purchase from a restore-purchases
+  /// replay (e.g. reinstall, new device) reaching the same success path.
+  Future<void> logPurchaseCompleted({required bool restored});
+
+  Future<void> logPurchaseFailed();
 }
 
 /// Thin wrapper around Firebase Analytics — one method per event we track,
@@ -131,6 +137,17 @@ class AnalyticsService implements AnalyticsLogger {
   @override
   Future<void> logAccountDeleted() =>
       _analytics.logEvent(name: 'account_deleted');
+
+  @override
+  Future<void> logPurchaseCompleted({required bool restored}) =>
+      _analytics.logEvent(
+        name: 'purchase_completed',
+        parameters: {'restored': restored},
+      );
+
+  @override
+  Future<void> logPurchaseFailed() =>
+      _analytics.logEvent(name: 'purchase_failed');
 }
 
 /// Swappable in tests (assign a fake [AnalyticsLogger] in `setUp`, restore

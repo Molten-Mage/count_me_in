@@ -86,7 +86,7 @@ class AppDialogActions extends StatelessWidget {
               foregroundColor: Theme.of(context).colorScheme.onError,
             )
           : null,
-      child: Text(primaryLabel),
+      child: Text(primaryLabel, textAlign: TextAlign.center),
     );
 
     final secondaryLabel = this.secondaryLabel;

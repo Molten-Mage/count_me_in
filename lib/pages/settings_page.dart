@@ -10,6 +10,7 @@ import '../data/challenge_templates.dart';
 import '../services/analytics_service.dart';
 import '../services/challenge_service.dart';
 import '../services/premium_service.dart';
+import '../services/purchase_service.dart';
 import '../services/theme_controller.dart';
 import '../widgets/change_password_dialog.dart';
 import '../widgets/confirm_delete_dialog.dart';
@@ -36,6 +37,15 @@ class SettingsPage extends StatelessWidget {
         builder: (context) => const NotificationSettingsPage(),
       ),
     );
+  }
+
+  Future<void> _restorePurchases(BuildContext context) async {
+    await purchaseService.restore();
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Checking for previous purchases…')),
+      );
+    }
   }
 
   String _providerLabel(String providerId) {
@@ -96,6 +106,14 @@ class SettingsPage extends StatelessWidget {
                           source: 'settings',
                         ),
                         child: const Text('Get Premium'),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton(
+                        onPressed: () => _restorePurchases(context),
+                        child: const Text('Restore purchases'),
                       ),
                     ),
                   ],

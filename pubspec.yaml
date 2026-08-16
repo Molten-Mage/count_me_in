@@ -50,6 +50,7 @@ dependencies:
   app_tracking_transparency: ^2.0.7
   app_links: ^7.2.1
   firebase_messaging: ^16.5.0
+  in_app_purchase: ^3.3.0
 
 dev_dependencies:
   flutter_test:

@@ -36,7 +36,7 @@ void main() {
 
   testWidgets('shows the pitch and price', (tester) async {
     await pumpDialog(tester);
-    expect(find.text('Go Premium'), findsOneWidget);
+    expect(find.text('Upgrade your tracking!'), findsOneWidget);
     expect(find.textContaining(PremiumService.priceLabel), findsOneWidget);
     expect(find.textContaining('One-time purchase'), findsOneWidget);
   });
@@ -56,7 +56,10 @@ void main() {
   ) async {
     await pumpDialog(tester, source: 'settings');
 
-    await tester.tap(find.textContaining('Upgrade'));
+    // The dialog title now also contains "Upgrade" ("Upgrade your
+    // tracking!"), so match the button's exact text rather than a
+    // substring to avoid ambiguity.
+    await tester.tap(find.text('Upgrade — ${PremiumService.priceLabel}'));
     await tester.pump(); // process tap, run sync part of onPrimary
     await tester.pump(); // flush the awaited setPremium() Future
     await tester.pump(const Duration(milliseconds: 100)); // snackbar enters

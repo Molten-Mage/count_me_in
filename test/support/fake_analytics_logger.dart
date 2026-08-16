@@ -78,4 +78,11 @@ class FakeAnalyticsLogger implements AnalyticsLogger {
 
   @override
   Future<void> logAccountDeleted() async => events.add('account_deleted');
+
+  @override
+  Future<void> logPurchaseCompleted({required bool restored}) async =>
+      events.add('purchase_completed:$restored');
+
+  @override
+  Future<void> logPurchaseFailed() async => events.add('purchase_failed');
 }

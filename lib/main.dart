@@ -10,6 +10,7 @@ import 'firebase_options.dart';
 import 'pages/auth_gate.dart';
 import 'services/deep_link_service.dart';
 import 'services/premium_service.dart';
+import 'services/purchase_service.dart';
 import 'services/push_notification_service.dart';
 import 'services/theme_controller.dart';
 import 'widgets/ad_banner.dart';
@@ -33,6 +34,10 @@ void main() async {
 
   await themeController.load();
   await premiumStatus.load();
+  // Listens for purchase updates for the rest of the app's lifetime —
+  // safe to start even though no real product exists in App Store Connect
+  // yet, since it just sits idle until a purchase is ever initiated.
+  purchaseService.init();
   try {
     await GoogleSignIn.instance.initialize();
   } catch (_) {

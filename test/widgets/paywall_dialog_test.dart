@@ -50,6 +50,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text("You've hit the free limit"), findsNothing);
-    expect(find.text('Go Premium'), findsOneWidget);
+    expect(find.text('Upgrade your tracking!'), findsOneWidget);
   });
 }
