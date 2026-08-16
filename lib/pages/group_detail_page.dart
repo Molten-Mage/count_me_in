@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -25,8 +27,34 @@ class GroupDetailPage extends StatefulWidget {
 class _GroupDetailPageState extends State<GroupDetailPage> {
   final _groupService = GroupService();
   final _stepController = TextEditingController(text: '1');
+  // Created once rather than inline in build()'s `stream:` argument — a
+  // fresh Stream instance on every rebuild forces StreamBuilder to
+  // unsubscribe and resubscribe, briefly dropping back to its loading
+  // state before the new subscription's first snapshot arrives. That
+  // subscribe/wait/reconnect cycle, firing on every optimistic setState,
+  // was the actual "blink" — not a display-value race.
+  late final Stream<Group> _groupStream = _groupService.streamGroup(
+    widget.group.id,
+  );
+  late final Stream<List<GroupMember>> _membersStream = _groupService
+      .streamMembers(widget.group.id);
   int _currentTotal = 0;
   int? _lastKnownTotal;
+  // Displayed immediately on tap, ahead of the member-tally write actually
+  // landing and this page's StreamBuilder catching up — otherwise every
+  // tap waits on a full round trip before showing anything, which makes
+  // rapid tapping feel unresponsive. Keyed by member uid.
+  //
+  // Cleared reactively in _effectiveTally once the stream's own value
+  // matches the prediction, NOT as soon as the write's Future resolves —
+  // that write can be acknowledged before its snapshot listener actually
+  // fires, and clearing on "resolved" produced a visible revert-to-old-
+  // value flash right before the stream caught up and it jumped forward
+  // again. Each entry also carries a fallback timer in case a concurrent
+  // edit (e.g. an admin editing the same member) means the stream's value
+  // never exactly matches what was predicted, so the display doesn't get
+  // stuck on a stale guess forever.
+  final Map<String, int> _tallyOverrides = {};
 
   @override
   void dispose() {
@@ -37,6 +65,71 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
   int get _step {
     final step = int.tryParse(_stepController.text);
     return (step == null || step <= 0) ? 1 : step;
+  }
+
+  int _effectiveTally(GroupMember member) {
+    final override = _tallyOverrides[member.uid];
+    if (override == null) return member.tally;
+    if (override == member.tally) {
+      // The stream has caught up — safe to drop now, displays identically
+      // either way. No setState: this is cache cleanup, not a value
+      // change (this frame renders the same number regardless).
+      _tallyOverrides.remove(member.uid);
+    }
+    return override;
+  }
+
+  void _showSaveError() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text("Couldn't save — check your connection and try again."),
+      ),
+    );
+  }
+
+  void _clearOverrideAfterDelay(String uid) {
+    Future.delayed(const Duration(seconds: 5), () {
+      if (mounted) setState(() => _tallyOverrides.remove(uid));
+    });
+  }
+
+  Future<void> _incrementMember(
+    Group group,
+    GroupMember member,
+    int amount,
+  ) async {
+    setState(
+      () => _tallyOverrides[member.uid] = _effectiveTally(member) + amount,
+    );
+    try {
+      await _groupService.incrementMemberTally(group.id, member.uid, amount);
+      _clearOverrideAfterDelay(member.uid);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _tallyOverrides.remove(member.uid));
+      _showSaveError();
+    }
+  }
+
+  Future<void> _decrementMember(
+    Group group,
+    GroupMember member,
+    int amount,
+  ) async {
+    setState(() {
+      _tallyOverrides[member.uid] = max(
+        _effectiveTally(member) - amount,
+        0,
+      );
+    });
+    try {
+      await _groupService.decrementMemberTally(group.id, member.uid, amount);
+      _clearOverrideAfterDelay(member.uid);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _tallyOverrides.remove(member.uid));
+      _showSaveError();
+    }
   }
 
   void _showInviteCode(Group group) {
@@ -279,7 +372,7 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
     final myUid = FirebaseAuth.instance.currentUser?.uid;
 
     return StreamBuilder<Group>(
-      stream: _groupService.streamGroup(widget.group.id),
+      stream: _groupStream,
       initialData: widget.group,
       builder: (context, groupSnapshot) {
         final group = groupSnapshot.data ?? widget.group;
@@ -353,7 +446,7 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
             onTap: () => FocusScope.of(context).unfocus(),
             behavior: HitTestBehavior.opaque,
             child: StreamBuilder<List<GroupMember>>(
-              stream: _groupService.streamMembers(group.id),
+              stream: _membersStream,
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
@@ -364,11 +457,24 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
                   );
                 }
                 final rawMembers = snapshot.data ?? const <GroupMember>[];
+                // Sorted by the real (server-confirmed) tally, not the
+                // optimistic one — an optimistic bump can otherwise reorder
+                // rows the moment it's applied and again when it's cleared,
+                // shifting whatever the user's mid-tap on out from under
+                // their finger. The displayed number still uses
+                // _effectiveTally below; only row order stays stable.
                 final members = List<GroupMember>.of(rawMembers)
                   ..sort((a, b) => b.tally.compareTo(a.tally));
+                // `total` (server truth, drives the goal-reached celebration
+                // below) vs `displayTotal` (includes optimistic overrides,
+                // what's actually shown) — kept separate so a celebration
+                // never fires ahead of the write it's celebrating actually
+                // landing.
                 int total = 0;
+                int displayTotal = 0;
                 for (final member in members) {
                   total += member.tally;
+                  displayTotal += _effectiveTally(member);
                 }
                 _currentTotal = total;
                 final target = group.target;
@@ -389,15 +495,15 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
                   children: [
                     Text(
                       target != null
-                          ? 'Team goal: $total / $target'
-                          : 'Team total: $total',
+                          ? 'Team goal: $displayTotal / $target'
+                          : 'Team total: $displayTotal',
                       textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                     if (target != null) ...[
                       const SizedBox(height: 8),
                       LinearProgressIndicator(
-                        value: (total / target).clamp(0, 1).toDouble(),
+                        value: (displayTotal / target).clamp(0, 1).toDouble(),
                       ),
                     ],
                     const SizedBox(height: 16),
@@ -424,7 +530,7 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
                                   ),
                                   const SizedBox(width: 8),
                                   Text(
-                                    '${members[i].tally}',
+                                    '${_effectiveTally(members[i])}',
                                     style: Theme.of(context)
                                         .textTheme
                                         .headlineSmall
@@ -441,18 +547,16 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
                                   children: [
                                     TallyStepper(
                                       stepController: _stepController,
-                                      onDecrement: () => _groupService
-                                          .decrementMemberTally(
-                                            group.id,
-                                            members[i].uid,
-                                            _step,
-                                          ),
-                                      onIncrement: () => _groupService
-                                          .incrementMemberTally(
-                                            group.id,
-                                            members[i].uid,
-                                            _step,
-                                          ),
+                                      onDecrement: () => _decrementMember(
+                                        group,
+                                        members[i],
+                                        _step,
+                                      ),
+                                      onIncrement: () => _incrementMember(
+                                        group,
+                                        members[i],
+                                        _step,
+                                      ),
                                     ),
                                   ],
                                 ),

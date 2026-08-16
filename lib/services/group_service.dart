@@ -2,10 +2,24 @@ import 'dart:math';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 
 import '../models/group.dart';
 import '../models/group_member.dart';
 import 'analytics_service.dart';
+
+/// Runs a best-effort side effect (badge-awarding, push notifications,
+/// activity tracking) without letting a failure there look like the tally
+/// write itself failed — those are all secondary to the tally update, and
+/// the UI's optimistic-update rollback should only trigger for a genuine
+/// failure to save the user's own tally.
+Future<void> _bestEffort(String label, Future<void> Function() action) async {
+  try {
+    await action();
+  } catch (e) {
+    if (kDebugMode) debugPrint('[GroupService] $label failed: $e');
+  }
+}
 
 class GroupService {
   GroupService({FirebaseFirestore? firestore, FirebaseAuth? auth})
@@ -254,9 +268,12 @@ class GroupService {
     await groupRef.collection('members').doc(uid).update({
       'tally': FieldValue.increment(amount),
     });
-    await _maybeAwardGroupBadge(groupRef);
-    await _maybeNotifyThreshold(groupRef, uid);
-    await _touchGroupActivity(groupRef);
+    await _bestEffort('badge award', () => _maybeAwardGroupBadge(groupRef));
+    await _bestEffort(
+      'threshold notify',
+      () => _maybeNotifyThreshold(groupRef, uid),
+    );
+    await _bestEffort('activity touch', () => _touchGroupActivity(groupRef));
   }
 
   /// Marks the group as recently active and clears any pending "gone
@@ -394,6 +411,6 @@ class GroupService {
       final current = (snapshot.data()?['tally'] as int?) ?? 0;
       transaction.update(ref, {'tally': max(current - amount, 0)});
     });
-    await _touchGroupActivity(groupRef);
+    await _bestEffort('activity touch', () => _touchGroupActivity(groupRef));
   }
 }

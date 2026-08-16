@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:rxdart/rxdart.dart';
 
 import '../models/challenge.dart';
@@ -9,6 +10,18 @@ import '../models/challenge_participant.dart';
 import 'analytics_service.dart';
 
 typedef ChallengeWithParticipation = ({Challenge challenge, ChallengeParticipant? me});
+
+/// Runs a best-effort side effect (leaderboard-passed notifications)
+/// without letting a failure there look like the tally write itself
+/// failed — the UI's optimistic-update rollback should only trigger for a
+/// genuine failure to save the user's own tally.
+Future<void> _bestEffort(String label, Future<void> Function() action) async {
+  try {
+    await action();
+  } catch (e) {
+    if (kDebugMode) debugPrint('[ChallengeService] $label failed: $e');
+  }
+}
 
 class ChallengeService {
   ChallengeService({FirebaseFirestore? firestore, FirebaseAuth? auth})
@@ -230,13 +243,109 @@ class ChallengeService {
   }
 
   /// Updates objective targets (names and ids stay fixed). Firestore rules
-  /// restrict this to the challenge's creator.
+  /// restrict this to the challenge's creator. A target edit can push any
+  /// participant into or out of "complete" without their tallies changing
+  /// at all, so this also recomputes `completedAt` for every participant
+  /// against the new targets — unlike a tally change, which only ever
+  /// needs to re-check the one person whose tally just moved.
   Future<void> updateObjectiveTargets(
     String challengeId,
     List<ChallengeObjective> objectives,
   ) async {
-    await _challenges.doc(challengeId).update({
+    final challengeRef = _challenges.doc(challengeId);
+    await challengeRef.update({
       'objectives': objectives.map((o) => o.toFirestore()).toList(),
+    });
+    await _recomputeCompletionForAllParticipants(challengeRef, objectives);
+  }
+
+  /// True once every objective with a target is met by [tallies] — the
+  /// single completion rule shared by tally changes, target edits, and
+  /// resets, so all three ways `completedAt` can change agree with each
+  /// other.
+  bool _isComplete(List<ChallengeObjective> objectives, Map<String, int> tallies) {
+    final targeted = objectives.where((o) => (o.target ?? 0) > 0);
+    return targeted.isNotEmpty &&
+        targeted.every((o) => (tallies[o.id] ?? 0) >= o.target!);
+  }
+
+  /// Not a transaction — reading every participant plus writing back only
+  /// the ones whose `completedAt` actually changed isn't something a
+  /// target edit needs strict atomicity for (unlike a single participant's
+  /// own tally change racing against itself), so plain reads/writes keep
+  /// this simple.
+  Future<void> _recomputeCompletionForAllParticipants(
+    DocumentReference<Map<String, dynamic>> challengeRef,
+    List<ChallengeObjective> objectives,
+  ) async {
+    final participantsSnapshot = await challengeRef.collection('participants').get();
+    final batch = _firestore.batch();
+    var hasChanges = false;
+
+    for (final doc in participantsSnapshot.docs) {
+      final participant = ChallengeParticipant.fromFirestore(doc.id, doc.data());
+      final nowComplete = _isComplete(objectives, participant.tallies);
+      final wasComplete = participant.completedAt != null;
+      if (nowComplete != wasComplete) {
+        batch.update(doc.reference, {
+          'completedAt': nowComplete ? Timestamp.fromDate(DateTime.now()) : null,
+        });
+        hasChanges = true;
+      }
+    }
+
+    if (hasChanges) await batch.commit();
+  }
+
+  /// Resets the caller's own tally for one objective back to zero.
+  /// Clearing a single objective can only ever un-complete someone (never
+  /// complete them further), but whether it actually does depends on
+  /// whether that objective had a target at all, so this still goes
+  /// through the shared [_isComplete] check rather than assuming.
+  Future<void> resetObjectiveTally(String challengeId, String objectiveId) async {
+    final challengeRef = _challenges.doc(challengeId);
+    final participantRef = challengeRef.collection('participants').doc(_uid);
+    await _firestore.runTransaction((transaction) async {
+      final challengeSnapshot = await transaction.get(challengeRef);
+      final participantSnapshot = await transaction.get(participantRef);
+      final challengeData = challengeSnapshot.data();
+      final participantData = participantSnapshot.data();
+      if (challengeData == null || participantData == null) return;
+      final challenge = Challenge.fromFirestore(challengeSnapshot.id, challengeData);
+
+      final tallies = Map<String, int>.from(
+        (participantData['tallies'] as Map<String, dynamic>?) ?? {},
+      );
+      tallies.remove(objectiveId);
+
+      final nowComplete = _isComplete(challenge.objectives, tallies);
+      final wasComplete = participantData['completedAt'] != null;
+
+      final update = <String, dynamic>{'tallies': tallies};
+      if (nowComplete != wasComplete) {
+        update['completedAt'] = nowComplete
+            ? Timestamp.fromDate(DateTime.now())
+            : null;
+      }
+      transaction.update(participantRef, update);
+    });
+  }
+
+  /// Resets every one of the caller's own objective tallies back to zero.
+  Future<void> resetAllTallies(String challengeId) async {
+    final participantRef =
+        _challenges.doc(challengeId).collection('participants').doc(_uid);
+    await _firestore.runTransaction((transaction) async {
+      final participantSnapshot = await transaction.get(participantRef);
+      final participantData = participantSnapshot.data();
+      if (participantData == null) return;
+      final wasComplete = participantData['completedAt'] != null;
+      final update = <String, dynamic>{'tallies': <String, int>{}};
+      // An empty tallies map can never satisfy _isComplete (it requires
+      // at least one targeted objective to be met), so this is always a
+      // clear rather than needing the general check.
+      if (wasComplete) update['completedAt'] = null;
+      transaction.update(participantRef, update);
     });
   }
 
@@ -286,7 +395,10 @@ class ChallengeService {
     int amount,
   ) async {
     await _applyTallyDelta(challengeId, objectiveId, amount);
-    await _maybeNotifyLeaderboardPass(challengeId, objectiveId, amount);
+    await _bestEffort(
+      'leaderboard-pass notify',
+      () => _maybeNotifyLeaderboardPass(challengeId, objectiveId, amount),
+    );
   }
 
   Future<void> decrementObjectiveTally(
@@ -295,7 +407,10 @@ class ChallengeService {
     int amount,
   ) async {
     await _applyTallyDelta(challengeId, objectiveId, -amount);
-    await _maybeNotifyLeaderboardPass(challengeId, objectiveId, -amount);
+    await _bestEffort(
+      'leaderboard-pass notify',
+      () => _maybeNotifyLeaderboardPass(challengeId, objectiveId, -amount),
+    );
   }
 
   /// The same overall-percent metric shown as each participant's progress
@@ -399,10 +514,7 @@ class ChallengeService {
       final current = tallies[objectiveId] ?? 0;
       tallies[objectiveId] = max(current + delta, 0);
 
-      final targeted = challenge.objectives.where((o) => (o.target ?? 0) > 0);
-      final nowComplete =
-          targeted.isNotEmpty &&
-          targeted.every((o) => (tallies[o.id] ?? 0) >= o.target!);
+      final nowComplete = _isComplete(challenge.objectives, tallies);
       final wasComplete = participantData['completedAt'] != null;
 
       final update = <String, dynamic>{'tallies': tallies};

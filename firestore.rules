@@ -224,23 +224,43 @@ service cloud.firestore {
           && request.resource.data.tallies == {}
           && request.resource.data.joinedAt is timestamp;
 
-        // Self-service only (no admin-controlled variant), only `tallies`
-        // (bounded) and `completedAt` (set/cleared alongside it, as the
-        // client crosses/un-crosses "every targeted objective reached")
-        // may change, and no more updates once the challenge's deadline
-        // (if any) has passed.
+        // Self-service (no admin-controlled variant): `tallies` (bounded)
+        // and `completedAt` (set/cleared alongside it, as the client
+        // crosses/un-crosses "every targeted objective reached" — via a
+        // tally change, a full reset, or a single-objective reset) may
+        // change, and no more updates once the challenge's deadline (if
+        // any) has passed. Separately, the challenge's creator may update
+        // just `completedAt` on *any* participant — from
+        // ChallengeService._recomputeCompletionForAllParticipants,
+        // re-checking everyone against a target edit that just changed
+        // what "complete" even means, with no deadline gate (the point is
+        // fixing stale completion status, which should work even for an
+        // already-ended challenge).
         allow update: if request.auth != null
-          && request.auth.uid == uid
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['tallies', 'completedAt'])
-          && challengeTalliesValid(request.resource.data.tallies)
           && (
-            !('completedAt' in request.resource.data)
-            || request.resource.data.completedAt == null
-            || request.resource.data.completedAt is timestamp
-          )
-          && (
-            get(/databases/$(database)/documents/challenges/$(challengeId)).data.endsAt == null
-            || request.time < get(/databases/$(database)/documents/challenges/$(challengeId)).data.endsAt
+            (
+              request.auth.uid == uid
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['tallies', 'completedAt'])
+              && challengeTalliesValid(request.resource.data.tallies)
+              && (
+                !('completedAt' in request.resource.data)
+                || request.resource.data.completedAt == null
+                || request.resource.data.completedAt is timestamp
+              )
+              && (
+                get(/databases/$(database)/documents/challenges/$(challengeId)).data.endsAt == null
+                || request.time < get(/databases/$(database)/documents/challenges/$(challengeId)).data.endsAt
+              )
+            )
+            || (
+              request.auth.uid
+                == get(/databases/$(database)/documents/challenges/$(challengeId)).data.createdBy
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['completedAt'])
+              && (
+                request.resource.data.completedAt == null
+                || request.resource.data.completedAt is timestamp
+              )
+            )
           );
 
         allow delete: if request.auth != null

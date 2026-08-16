@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -39,15 +41,16 @@ bool _isCompletedByMe(ChallengeParticipant? me) => me?.completedAt != null;
 /// The viewer's own average completion across every objective that has a
 /// target (objectives with no target aren't well-defined as a "%", so
 /// they're excluded). Null if no objective has a target, or they haven't
-/// joined.
-double? _percentComplete(Challenge challenge, ChallengeParticipant? me) {
+/// joined. Takes a plain tallies map (rather than a ChallengeParticipant)
+/// so the caller can merge in optimistic overrides before computing this.
+double? _percentComplete(Challenge challenge, Map<String, int>? tallies) {
   final targeted = challenge.objectives
       .where((o) => (o.target ?? 0) > 0)
       .toList();
-  if (targeted.isEmpty || me == null) return null;
+  if (targeted.isEmpty || tallies == null) return null;
   final total = targeted.fold<double>(
     0,
-    (sum, o) => sum + (me.tallyFor(o.id) / o.target!).clamp(0.0, 1.0),
+    (sum, o) => sum + ((tallies[o.id] ?? 0) / o.target!).clamp(0.0, 1.0),
   );
   return total / targeted.length;
 }
@@ -64,9 +67,40 @@ class ChallengeDetailPage extends StatefulWidget {
 class _ChallengeDetailPageState extends State<ChallengeDetailPage> {
   final _challengeService = ChallengeService();
   final Map<String, TextEditingController> _stepControllers = {};
+  // Created once rather than inline in build()'s `stream:` argument — a
+  // fresh Stream instance on every rebuild forces StreamBuilder to
+  // unsubscribe and resubscribe, briefly dropping back to its loading
+  // state before the new subscription's first snapshot arrives. That
+  // subscribe/wait/reconnect cycle, firing on every optimistic setState,
+  // was the actual "blink" — not a display-value race.
+  late final Stream<Challenge> _challengeStream = _challengeService
+      .streamChallenge(widget.challenge.id);
+  late final Stream<List<ChallengeParticipant>> _participantsStream =
+      _challengeService.streamParticipants(widget.challenge.id);
   // null until the first snapshot arrives, so we don't celebrate a
   // challenge that was already complete before this page opened.
   bool? _wasCompletedByMe;
+  // Displayed immediately on tap, ahead of the objective-tally write
+  // actually landing and this page's StreamBuilder catching up —
+  // otherwise every tap waits on a full round trip before showing
+  // anything, which is what made incrementing one objective then
+  // immediately tapping another look like the whole page was reloading.
+  // Keyed by objective id.
+  //
+  // Cleared reactively in _effectiveTally once the stream's own value
+  // matches the prediction, NOT as soon as the write's Future resolves —
+  // that write can be acknowledged before its snapshot listener actually
+  // fires, and clearing on "resolved" produced a visible revert-to-old-
+  // value flash right before the stream caught up and it jumped forward
+  // again. Each write also sets a fallback timer in case a concurrent
+  // edit means the stream's value never exactly matches what was
+  // predicted, so the display doesn't get stuck on a stale guess forever.
+  //
+  // Completion (`completedAt`) deliberately isn't predicted the same way
+  // — it stays server-truth-driven via `_trackCompletion`, so the
+  // completed-challenge celebration never fires ahead of the server
+  // actually confirming it.
+  final Map<String, int> _tallyOverrides = {};
 
   @override
   void dispose() {
@@ -74,6 +108,125 @@ class _ChallengeDetailPageState extends State<ChallengeDetailPage> {
       controller.dispose();
     }
     super.dispose();
+  }
+
+  int _effectiveTally(ChallengeParticipant? me, String objectiveId) {
+    final override = _tallyOverrides[objectiveId];
+    if (override == null) return me?.tallyFor(objectiveId) ?? 0;
+    final real = me?.tallyFor(objectiveId) ?? 0;
+    if (override == real) {
+      // The stream has caught up — safe to drop now, displays identically
+      // either way. No setState: this is cache cleanup, not a value
+      // change (this frame renders the same number regardless).
+      _tallyOverrides.remove(objectiveId);
+    }
+    return override;
+  }
+
+  Map<String, int> _effectiveTallies(ChallengeParticipant? me) => {
+    ...?me?.tallies,
+    ..._tallyOverrides,
+  };
+
+  void _showSaveError() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text("Couldn't save — check your connection and try again."),
+      ),
+    );
+  }
+
+  void _clearOverrideAfterDelay(String objectiveId) {
+    Future.delayed(const Duration(seconds: 5), () {
+      if (mounted) setState(() => _tallyOverrides.remove(objectiveId));
+    });
+  }
+
+  Future<void> _incrementObjective(
+    Challenge challenge,
+    ChallengeParticipant? me,
+    ChallengeObjective objective,
+    int amount,
+  ) async {
+    setState(
+      () => _tallyOverrides[objective.id] =
+          _effectiveTally(me, objective.id) + amount,
+    );
+    try {
+      await _challengeService.incrementObjectiveTally(
+        challenge.id,
+        objective.id,
+        amount,
+      );
+      _clearOverrideAfterDelay(objective.id);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _tallyOverrides.remove(objective.id));
+      _showSaveError();
+    }
+  }
+
+  Future<void> _decrementObjective(
+    Challenge challenge,
+    ChallengeParticipant? me,
+    ChallengeObjective objective,
+    int amount,
+  ) async {
+    setState(() {
+      _tallyOverrides[objective.id] = math.max(
+        _effectiveTally(me, objective.id) - amount,
+        0,
+      );
+    });
+    try {
+      await _challengeService.decrementObjectiveTally(
+        challenge.id,
+        objective.id,
+        amount,
+      );
+      _clearOverrideAfterDelay(objective.id);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _tallyOverrides.remove(objective.id));
+      _showSaveError();
+    }
+  }
+
+  Future<void> _resetObjective(
+    Challenge challenge,
+    ChallengeObjective objective,
+  ) async {
+    setState(() => _tallyOverrides[objective.id] = 0);
+    try {
+      await _challengeService.resetObjectiveTally(challenge.id, objective.id);
+      _clearOverrideAfterDelay(objective.id);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _tallyOverrides.remove(objective.id));
+      _showSaveError();
+    }
+  }
+
+  Future<void> _resetAll(Challenge challenge) async {
+    setState(() {
+      for (final objective in challenge.objectives) {
+        _tallyOverrides[objective.id] = 0;
+      }
+    });
+    try {
+      await _challengeService.resetAllTallies(challenge.id);
+      for (final objective in challenge.objectives) {
+        _clearOverrideAfterDelay(objective.id);
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        for (final objective in challenge.objectives) {
+          _tallyOverrides.remove(objective.id);
+        }
+      });
+      _showSaveError();
+    }
   }
 
   void _trackCompletion(Challenge challenge, ChallengeParticipant? me) {
@@ -235,6 +388,30 @@ class _ChallengeDetailPageState extends State<ChallengeDetailPage> {
     );
   }
 
+  void _confirmResetAll(Challenge challenge) {
+    showConfirmDeleteDialog(
+      context,
+      title: 'Reset progress',
+      message:
+          'Are you sure you want to reset all of your objective tallies '
+          'in "${challenge.name}" back to zero? This can\'t be undone.',
+      confirmLabel: 'Reset',
+      onConfirm: () => _resetAll(challenge),
+    );
+  }
+
+  void _confirmResetObjective(Challenge challenge, ChallengeObjective objective) {
+    showConfirmDeleteDialog(
+      context,
+      title: 'Reset objective',
+      message:
+          'Are you sure you want to reset your tally for '
+          '"${objective.name}" back to zero? This can\'t be undone.',
+      confirmLabel: 'Reset',
+      onConfirm: () => _resetObjective(challenge, objective),
+    );
+  }
+
   void _confirmLeaveChallenge(Challenge challenge) {
     final myUid = FirebaseAuth.instance.currentUser?.uid;
     final isCreator = challenge.createdBy == myUid;
@@ -265,7 +442,7 @@ class _ChallengeDetailPageState extends State<ChallengeDetailPage> {
     final myUid = FirebaseAuth.instance.currentUser?.uid;
 
     return StreamBuilder<Challenge>(
-      stream: _challengeService.streamChallenge(widget.challenge.id),
+      stream: _challengeStream,
       initialData: widget.challenge,
       builder: (context, challengeSnapshot) {
         final challenge = challengeSnapshot.data ?? widget.challenge;
@@ -361,7 +538,7 @@ class _ChallengeDetailPageState extends State<ChallengeDetailPage> {
             onTap: () => FocusScope.of(context).unfocus(),
             behavior: HitTestBehavior.opaque,
             child: StreamBuilder<List<ChallengeParticipant>>(
-              stream: _challengeService.streamParticipants(challenge.id),
+              stream: _participantsStream,
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
@@ -381,9 +558,20 @@ class _ChallengeDetailPageState extends State<ChallengeDetailPage> {
                   children: [
                     _ChallengeHeader(
                       challenge: challenge,
-                      me: me,
+                      tallies: me == null ? null : _effectiveTallies(me),
                       onTap: () => _openInfo(challenge),
                     ),
+                    if (me != null && !challenge.hasEnded) ...[
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: () => _confirmResetAll(challenge),
+                          icon: const Icon(Icons.restart_alt),
+                          label: const Text('Reset progress'),
+                        ),
+                      ),
+                    ],
                     if (!isMember) ...[
                       const SizedBox(height: 12),
                       SizedBox(
@@ -406,23 +594,25 @@ class _ChallengeDetailPageState extends State<ChallengeDetailPage> {
                     for (final objective in challenge.objectives)
                       _ObjectiveCard(
                         objective: objective,
-                        me: me,
+                        myTally: _effectiveTally(me, objective.id),
                         canEdit: !challenge.hasEnded && me != null,
                         stepController: _stepControllerFor(objective.id),
-                        onDecrement: () =>
-                            _challengeService.decrementObjectiveTally(
-                              challenge.id,
-                              objective.id,
-                              _stepFor(objective.id),
-                            ),
-                        onIncrement: () =>
-                            _challengeService.incrementObjectiveTally(
-                              challenge.id,
-                              objective.id,
-                              _stepFor(objective.id),
-                            ),
+                        onDecrement: () => _decrementObjective(
+                          challenge,
+                          me,
+                          objective,
+                          _stepFor(objective.id),
+                        ),
+                        onIncrement: () => _incrementObjective(
+                          challenge,
+                          me,
+                          objective,
+                          _stepFor(objective.id),
+                        ),
                         onTap: () =>
                             _openInfo(challenge, objectiveId: objective.id),
+                        onReset: () =>
+                            _confirmResetObjective(challenge, objective),
                       ),
                   ],
                 );
@@ -437,12 +627,14 @@ class _ChallengeDetailPageState extends State<ChallengeDetailPage> {
 
 class _ChallengeHeader extends StatelessWidget {
   final Challenge challenge;
-  final ChallengeParticipant? me;
+  // Null if the viewer hasn't joined; otherwise their tallies merged with
+  // any optimistic overrides still in flight (see _effectiveTallies).
+  final Map<String, int>? tallies;
   final VoidCallback onTap;
 
   const _ChallengeHeader({
     required this.challenge,
-    required this.me,
+    required this.tallies,
     required this.onTap,
   });
 
@@ -459,7 +651,7 @@ class _ChallengeHeader extends StatelessWidget {
           ? 'Ends today'
           : 'Ends in $daysLeft day${daysLeft == 1 ? '' : 's'}';
     }
-    final myPercent = _percentComplete(challenge, me);
+    final myPercent = _percentComplete(challenge, tallies);
     final onColor = ended
         ? Theme.of(context).colorScheme.onErrorContainer
         : Theme.of(context).colorScheme.onSecondaryContainer;
@@ -515,27 +707,30 @@ class _ChallengeHeader extends StatelessWidget {
 
 class _ObjectiveCard extends StatelessWidget {
   final ChallengeObjective objective;
-  final ChallengeParticipant? me;
+  // Already resolved by the parent via _effectiveTally — includes any
+  // optimistic override still in flight for this objective.
+  final int myTally;
   final bool canEdit;
   final TextEditingController stepController;
   final VoidCallback onDecrement;
   final VoidCallback onIncrement;
   final VoidCallback onTap;
+  final VoidCallback onReset;
 
   const _ObjectiveCard({
     required this.objective,
-    required this.me,
+    required this.myTally,
     required this.canEdit,
     required this.stepController,
     required this.onDecrement,
     required this.onIncrement,
     required this.onTap,
+    required this.onReset,
   });
 
   @override
   Widget build(BuildContext context) {
     final target = objective.target;
-    final myTally = me?.tallyFor(objective.id) ?? 0;
     final done = target != null && myTally >= target;
 
     return Card(
@@ -578,6 +773,18 @@ class _ObjectiveCard extends StatelessWidget {
                   ],
                 ),
               ),
+              // Always present (just disabled at zero) rather than
+              // conditionally shown/hidden — an optimistic tally update and
+              // the stream value briefly disagreeing about the zero
+              // boundary would otherwise make this icon flicker in and out,
+              // shifting the stepper beside it.
+              if (canEdit)
+                IconButton(
+                  icon: const Icon(Icons.restart_alt),
+                  iconSize: 20,
+                  tooltip: 'Reset',
+                  onPressed: myTally > 0 ? onReset : null,
+                ),
               if (canEdit)
                 TallyStepper(
                   stepController: stepController,

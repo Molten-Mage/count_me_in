@@ -92,6 +92,29 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
+  /// Saves the already-applied optimistic `_counters` state, rolling back
+  /// to [previous] and surfacing an error if the save fails — every
+  /// mutation method below updates `_counters` via `setState` first, then
+  /// calls this, so the UI never waits on the network to reflect a change.
+  /// Returns whether the save succeeded, so callers can skip follow-up
+  /// steps (e.g. a badge-earned celebration) tied to a change that just
+  /// got rolled back.
+  Future<bool> _persist(List<Counter> previous) async {
+    try {
+      await _storage.saveCounters(_counters);
+      return true;
+    } catch (e) {
+      if (!mounted) return false;
+      setState(() => _counters = previous);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Couldn't save — check your connection and try again."),
+        ),
+      );
+      return false;
+    }
+  }
+
   Future<void> _showAddOptions() async {
     await showModalBottomSheet<void>(
       context: context,
@@ -127,6 +150,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _addCounter(String title, int? target) async {
+    final previous = _counters;
     final counter = Counter(
       id: DateTime.now().microsecondsSinceEpoch.toString(),
       title: title,
@@ -134,7 +158,7 @@ class _HomePageState extends State<HomePage> {
       createdAt: DateTime.now(),
     );
     setState(() => _counters = [..._counters, counter]);
-    await _storage.saveCounters(_counters);
+    await _persist(previous);
     await analyticsService.logCounterCreated();
   }
 
@@ -143,6 +167,7 @@ class _HomePageState extends State<HomePage> {
     int amount, {
     bool celebrate = true,
   }) async {
+    final previous = _counters;
     final current = _counters.firstWhere(
       (c) => c.id == counter.id,
       orElse: () => counter,
@@ -158,8 +183,8 @@ class _HomePageState extends State<HomePage> {
           if (c.id == counter.id) updated else c,
       ];
     });
-    await _storage.saveCounters(_counters);
-    if (!mounted) return;
+    final saved = await _persist(previous);
+    if (!mounted || !saved) return;
 
     if (celebrate && newlyEarnedBadge != null) {
       showGoalReachedDialog(
@@ -178,6 +203,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _decrement(Counter counter, int amount) async {
+    final previous = _counters;
     setState(() {
       _counters = [
         for (final c in _counters)
@@ -187,10 +213,11 @@ class _HomePageState extends State<HomePage> {
             c,
       ];
     });
-    await _storage.saveCounters(_counters);
+    await _persist(previous);
   }
 
   Future<void> _deleteCounter(Counter counter) async {
+    final previous = _counters;
     setState(() {
       _counters = [
         for (final c in _counters)
@@ -199,8 +226,8 @@ class _HomePageState extends State<HomePage> {
     });
     _stepControllers.remove(counter.id)?.dispose();
     _stepFocusNodes.remove(counter.id)?.dispose();
-    await _storage.saveCounters(_counters);
-    await analyticsService.logCounterDeleted();
+    final saved = await _persist(previous);
+    if (saved) await analyticsService.logCounterDeleted();
   }
 
   Future<void> _updateCounter(
@@ -208,6 +235,7 @@ class _HomePageState extends State<HomePage> {
     String title,
     int? target,
   ) async {
+    final previous = _counters;
     setState(() {
       _counters = [
         for (final c in _counters)
@@ -217,20 +245,22 @@ class _HomePageState extends State<HomePage> {
             c,
       ];
     });
-    await _storage.saveCounters(_counters);
+    await _persist(previous);
   }
 
   Future<void> _updateNotes(Counter counter, String notes) async {
+    final previous = _counters;
     setState(() {
       _counters = [
         for (final c in _counters)
           if (c.id == counter.id) c.copyWith(notes: notes) else c,
       ];
     });
-    await _storage.saveCounters(_counters);
+    await _persist(previous);
   }
 
   Future<void> _resetCounter(Counter counter, bool clearBadges) async {
+    final previous = _counters;
     setState(() {
       _counters = [
         for (final c in _counters)
@@ -240,15 +270,19 @@ class _HomePageState extends State<HomePage> {
             c,
       ];
     });
-    await _storage.saveCounters(_counters);
+    await _persist(previous);
   }
 
   Future<void> _reorderCounters(int oldIndex, int newIndex) async {
+    // A defensive copy, not just a reference — removeAt/insert below
+    // mutate _counters in place, which would otherwise leave `previous`
+    // pointing at the same (already-reordered) list.
+    final previous = List<Counter>.of(_counters);
     setState(() {
       final counter = _counters.removeAt(oldIndex);
       _counters.insert(newIndex, counter);
     });
-    await _storage.saveCounters(_counters);
+    await _persist(previous);
   }
 
   void _confirmDeleteCounter(Counter counter) {
