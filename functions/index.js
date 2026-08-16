@@ -342,13 +342,31 @@ async function generateUniqueChallengeCode() {
   throw new Error("Could not generate a unique challenge invite code.");
 }
 
+// Tries a handful of random category/name picks looking for one not in
+// [usedNames] (names currently active among official challenges, updated
+// by the caller as each new one is generated so a single replenish run
+// never picks the same name twice either). Falls back to allowing a
+// repeat rather than blocking replenishment — with 12 names across 8
+// categories against a floor of 10 active challenges, exhausting every
+// name is essentially impossible, but generation should never hang or
+// throw over a cosmetic collision.
+function pickAvailableCategoryAndName(usedNames) {
+  for (let attempt = 0; attempt < 20; attempt++) {
+    const category = pick(challengeCategories);
+    const available = category.flavorNames.filter((n) => !usedNames.has(n));
+    if (available.length > 0) return {category, name: pick(available)};
+  }
+  const category = pick(challengeCategories);
+  return {category, name: pick(category.flavorNames)};
+}
+
 // Ports the random-selection logic from settings_page.dart's
 // _GenerateChallengeTile — same category/flavor-name/objective-count/
 // duration randomization, just run server-side. Keep the two in sync if
 // the generation "feel" changes on either side.
-async function generateOfficialChallenge() {
-  const category = pick(challengeCategories);
-  const name = pick(category.flavorNames);
+async function generateOfficialChallenge(usedNames) {
+  const {category, name} = pickAvailableCategoryAndName(usedNames);
+  usedNames.add(name);
   const description = pick(category.descriptions);
   const objectiveCount = Math.min(
       1 + randomInt(4), category.objectives.length,
@@ -384,7 +402,9 @@ async function generateOfficialChallenge() {
 /**
  * Once a day, tops up the pool of active official public challenges so
  * Explore always has fresh content available, without anyone needing to
- * tap the debug "Generate official challenge" button in Settings.
+ * tap the debug "Generate official challenge" button in Settings. Never
+ * generates a challenge whose name matches one already active — see
+ * pickAvailableCategoryAndName.
  */
 exports.replenishOfficialChallenges = onSchedule(
     "every 24 hours",
@@ -395,14 +415,15 @@ exports.replenishOfficialChallenges = onSchedule(
           .where("visibility", "==", "public")
           .get();
 
-      const activeCount = snapshot.docs.filter((doc) => {
+      const active = snapshot.docs.filter((doc) => {
         const endsAt = doc.data().endsAt;
         return !endsAt || endsAt.toMillis() > now;
-      }).length;
+      });
+      const usedNames = new Set(active.map((doc) => doc.data().name));
 
-      const deficit = MIN_ACTIVE_OFFICIAL_CHALLENGES - activeCount;
+      const deficit = MIN_ACTIVE_OFFICIAL_CHALLENGES - active.length;
       for (let i = 0; i < deficit; i++) {
-        await generateOfficialChallenge();
+        await generateOfficialChallenge(usedNames);
       }
     },
 );
