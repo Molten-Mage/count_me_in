@@ -70,6 +70,21 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
+  /// Firebase no longer exposes which provider(s) an email is already
+  /// linked to (fetchSignInMethodsForEmail was removed to prevent email
+  /// enumeration), so the best we can do is name the other methods that
+  /// might be the right one.
+  String _accountExistsMessage(String triedVia, String? email) {
+    final others = <String>[
+      if (triedVia != 'Google') 'Google',
+      if (triedVia != 'Apple' && _supportsAppleSignIn) 'Apple',
+      'Email & password',
+    ];
+    final emailPart = email != null ? ' for $email' : '';
+    return 'An account already exists$emailPart using a different sign-in '
+        'method. Try ${others.join(' or ')} instead.';
+  }
+
   void _backToMethodPicker() {
     setState(() {
       _showEmailForm = false;
@@ -158,7 +173,12 @@ class _LoginPageState extends State<LoginPage> {
         setState(() => _errorMessage = 'Google sign-in failed. Try again.');
       }
     } on FirebaseAuthException catch (e) {
-      setState(() => _errorMessage = e.message ?? 'Something went wrong.');
+      setState(
+        () => _errorMessage =
+            e.code == 'account-exists-with-different-credential'
+            ? _accountExistsMessage('Google', e.email)
+            : e.message ?? 'Something went wrong.',
+      );
     } catch (_) {
       setState(
         () => _errorMessage = 'Google sign-in isn\'t available on this device.',
@@ -215,7 +235,12 @@ class _LoginPageState extends State<LoginPage> {
         setState(() => _errorMessage = 'Apple sign-in failed. Try again.');
       }
     } on FirebaseAuthException catch (e) {
-      setState(() => _errorMessage = e.message ?? 'Something went wrong.');
+      setState(
+        () => _errorMessage =
+            e.code == 'account-exists-with-different-credential'
+            ? _accountExistsMessage('Apple', e.email)
+            : e.message ?? 'Something went wrong.',
+      );
     } catch (_) {
       setState(
         () => _errorMessage = 'Apple sign-in isn\'t available on this device.',

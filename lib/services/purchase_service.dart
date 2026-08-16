@@ -11,12 +11,11 @@ void _log(String message) {
 }
 
 /// The App Store Connect / Play Console product identifier for the
-/// one-time Premium unlock. Placeholder until a real App Store Connect
-/// record exists — the product itself has to be created there (and, for
-/// Android, in Play Console) with this exact ID before purchases can
-/// actually go through. Update this to match once it does; nothing else
-/// needs to change.
-const premiumProductId = 'com.example.count_me_in.premium';
+/// one-time Premium unlock. Matches the Non-Consumable product created in
+/// App Store Connect (Monetization → In-App Purchases). Still needs a
+/// matching product created in Play Console with this same ID for Android
+/// purchases to work there too.
+const premiumProductId = 'premium_unlock01';
 
 /// Wraps the `in_app_purchase` package for the app's one product: a
 /// single non-consumable "Premium" unlock. [buyPremium] only reports

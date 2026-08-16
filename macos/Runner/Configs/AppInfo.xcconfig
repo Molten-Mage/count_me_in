@@ -8,7 +8,7 @@
 PRODUCT_NAME = count_me_in
 
 // The application's bundle identifier
-PRODUCT_BUNDLE_IDENTIFIER = com.example.countMeIn
+PRODUCT_BUNDLE_IDENTIFIER = com.moltenmage.countmein
 
 // The copyright displayed in application information
-PRODUCT_COPYRIGHT = Copyright © 2026 com.example. All rights reserved.
+PRODUCT_COPYRIGHT = Copyright © 2026 com.moltenmage. All rights reserved.

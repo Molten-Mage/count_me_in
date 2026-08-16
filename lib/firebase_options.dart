@@ -55,22 +55,20 @@ class DefaultFirebaseOptions {
   );
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyBgAWmEWL45Y9QqZywHR6FFpbiwHQZVF_c',
-    appId: '1:1057531841336:ios:38d42b47d756c56531cfcd',
+    appId: '1:1057531841336:ios:ae2ccea5dd50d40931cfcd',
     messagingSenderId: '1057531841336',
     projectId: 'count-me-in-fe2e3',
     storageBucket: 'count-me-in-fe2e3.firebasestorage.app',
-    iosClientId:
-        '1057531841336-d5j4npjmblnnuohm4qlub3rdpjpkb38m.apps.googleusercontent.com',
-    iosBundleId: 'com.example.countMeIn',
+    iosClientId: '1057531841336-2ocol465bkct6k3kj83pvgcjuke1v5gi.apps.googleusercontent.com',
+    iosBundleId: 'com.moltenmage.countmein',
   );
   static const FirebaseOptions macos = FirebaseOptions(
     apiKey: 'AIzaSyBgAWmEWL45Y9QqZywHR6FFpbiwHQZVF_c',
-    appId: '1:1057531841336:ios:38d42b47d756c56531cfcd',
+    appId: '1:1057531841336:ios:ae2ccea5dd50d40931cfcd',
     messagingSenderId: '1057531841336',
     projectId: 'count-me-in-fe2e3',
     storageBucket: 'count-me-in-fe2e3.firebasestorage.app',
-    iosClientId:
-        '1057531841336-d5j4npjmblnnuohm4qlub3rdpjpkb38m.apps.googleusercontent.com',
-    iosBundleId: 'com.example.countMeIn',
+    iosClientId: '1057531841336-2ocol465bkct6k3kj83pvgcjuke1v5gi.apps.googleusercontent.com',
+    iosBundleId: 'com.moltenmage.countmein',
   );
 }

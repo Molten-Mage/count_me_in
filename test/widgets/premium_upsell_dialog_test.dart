@@ -56,10 +56,7 @@ void main() {
   ) async {
     await pumpDialog(tester, source: 'settings');
 
-    // The dialog title now also contains "Upgrade" ("Upgrade your
-    // tracking!"), so match the button's exact text rather than a
-    // substring to avoid ambiguity.
-    await tester.tap(find.text('Upgrade — ${PremiumService.priceLabel}'));
+    await tester.tap(find.text('Go Premium\n${PremiumService.priceLabel}'));
     await tester.pump(); // process tap, run sync part of onPrimary
     await tester.pump(); // flush the awaited setPremium() Future
     await tester.pump(const Duration(milliseconds: 100)); // snackbar enters

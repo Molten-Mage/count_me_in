@@ -52,6 +52,8 @@ class SettingsPage extends StatelessWidget {
     switch (providerId) {
       case 'google.com':
         return 'Google';
+      case 'apple.com':
+        return 'Apple';
       case 'password':
         return 'Email & password';
       default:
