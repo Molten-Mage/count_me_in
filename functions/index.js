@@ -369,7 +369,7 @@ async function generateOfficialChallenge(usedNames) {
   usedNames.add(name);
   const description = pick(category.descriptions);
   const objectiveCount = Math.min(
-      1 + randomInt(4), category.objectives.length,
+      2 + randomInt(3), category.objectives.length,
   );
   const shuffled = [...category.objectives].sort(() => Math.random() - 0.5);
   const chosen = shuffled.slice(0, objectiveCount);

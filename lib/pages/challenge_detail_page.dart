@@ -681,6 +681,11 @@ class _ChallengeHeader extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
+                    'Code: ${challenge.code}',
+                    style: TextStyle(color: onColor, fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
                     [_participantsText(challenge), ?deadlineText].join(' · '),
                     style: TextStyle(color: onColor),
                   ),

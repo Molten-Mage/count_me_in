@@ -480,7 +480,7 @@ class _GenerateChallengeTile extends StatelessWidget {
     final category = challengeCategories[random.nextInt(challengeCategories.length)];
     final name = category.flavorNames[random.nextInt(category.flavorNames.length)];
     final description = category.descriptions[random.nextInt(category.descriptions.length)];
-    final objectiveCount = min(1 + random.nextInt(4), category.objectives.length);
+    final objectiveCount = min(2 + random.nextInt(3), category.objectives.length);
     final chosen = (List.of(category.objectives)..shuffle(random)).take(objectiveCount);
     final durationDays = challengeDurationDaysOptions[random.nextInt(
       challengeDurationDaysOptions.length,

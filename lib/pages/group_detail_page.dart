@@ -601,6 +601,16 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
                     ],
                     const SizedBox(height: 24),
                     Text(
+                      'Group code',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      group.code,
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                    const SizedBox(height: 24),
+                    Text(
                       'Group admin',
                       style: Theme.of(context).textTheme.titleMedium,
                     ),

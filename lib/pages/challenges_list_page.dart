@@ -347,13 +347,25 @@ class _ChallengeListTile extends StatelessWidget {
           iconIndex: challenge.emblemIconIndex,
           colorIndex: challenge.emblemColorIndex,
         ),
-        title: Row(
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Flexible(child: Text(challenge.name)),
-            if (challenge.isOfficial) ...[
-              const SizedBox(width: 6),
-              const Icon(Icons.verified, size: 16),
-            ],
+            Row(
+              children: [
+                Flexible(child: Text(challenge.name)),
+                if (challenge.isOfficial) ...[
+                  const SizedBox(width: 6),
+                  const Icon(Icons.verified, size: 16),
+                ],
+              ],
+            ),
+            Text(
+              'Code: ${challenge.code}',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
           ],
         ),
         subtitle: Text(subtitle, maxLines: 2, overflow: TextOverflow.ellipsis),
