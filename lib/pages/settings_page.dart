@@ -110,14 +110,6 @@ class SettingsPage extends StatelessWidget {
                         child: const Text('Get Premium'),
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton(
-                        onPressed: () => _restorePurchases(context),
-                        child: const Text('Restore purchases'),
-                      ),
-                    ),
                   ],
                   if (isPremium && kDebugMode) ...[
                     const SizedBox(height: 8),
@@ -366,6 +358,11 @@ class SettingsPage extends StatelessWidget {
             child: Divider(),
           ),
           const SizedBox(height: 8),
+          ListTile(
+            leading: const Icon(Icons.restore_outlined),
+            title: const Text('Restore purchases'),
+            onTap: () => _restorePurchases(context),
+          ),
           ListTile(
             leading: Icon(
               Icons.logout,
