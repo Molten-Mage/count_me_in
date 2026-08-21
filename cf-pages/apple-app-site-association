@@ -1,0 +1,16 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appIDs": ["76JH4BD74H.com.moltenmage.countmein"],
+        "components": [
+          {
+            "/": "/join/*",
+            "comment": "Matches invite links, e.g. /join/group/ABC123 or /join/challenge/ABC123"
+          }
+        ]
+      }
+    ]
+  }
+}
