@@ -2,6 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 const maxGroupBadges = 15;
 
+enum TallyControl { member, admin, free }
+
 class GroupBadge {
   final int value;
   final DateTime reachedAt;
@@ -36,6 +38,7 @@ class Group {
   final List<String> memberIds;
   final List<GroupBadge> badges;
   final bool adminControlled;
+  final bool freeForAll;
 
   const Group({
     required this.id,
@@ -47,7 +50,12 @@ class Group {
     required this.memberIds,
     this.badges = const [],
     this.adminControlled = false,
+    this.freeForAll = false,
   });
+
+  TallyControl get tallyControl => freeForAll
+      ? TallyControl.free
+      : (adminControlled ? TallyControl.admin : TallyControl.member);
 
   factory Group.fromFirestore(String id, Map<String, dynamic> data) => Group(
     id: id,
@@ -63,6 +71,7 @@ class Group {
             .toList() ??
         const [],
     adminControlled: data['adminControlled'] as bool? ?? false,
+    freeForAll: data['freeForAll'] as bool? ?? false,
   );
 
   Map<String, dynamic> toFirestore() => {
@@ -74,5 +83,6 @@ class Group {
     'memberIds': memberIds,
     'badges': badges.map((b) => b.toFirestore()).toList(),
     'adminControlled': adminControlled,
+    'freeForAll': freeForAll,
   };
 }

@@ -538,9 +538,11 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
                                   ),
                                 ],
                               ),
-                              if (group.adminControlled
-                                  ? group.createdBy == myUid
-                                  : members[i].uid == myUid) ...[
+                              if (switch (group.tallyControl) {
+                                TallyControl.admin => group.createdBy == myUid,
+                                TallyControl.free => true,
+                                TallyControl.member => members[i].uid == myUid,
+                              }) ...[
                                 const SizedBox(height: 4),
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.end,

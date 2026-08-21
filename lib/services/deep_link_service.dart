@@ -35,6 +35,11 @@ enum _JoinKind { group, challenge }
 class DeepLinkService {
   ({_JoinKind kind, String code})? _pendingJoin;
 
+  // `app_links` can deliver the same cold-start URI via both
+  // getInitialLink() and the very first uriLinkStream event - guards
+  // against handling (and joining/navigating for) the same link twice.
+  Uri? _lastHandledUri;
+
   Future<void> init() async {
     final appLinks = AppLinks();
 
@@ -64,8 +69,13 @@ class DeepLinkService {
 
   void _handleUri(Uri uri) {
     _log('received: $uri');
+    if (uri == _lastHandledUri) {
+      _log('duplicate of the last-handled link - ignoring');
+      return;
+    }
     final segments = uri.pathSegments;
     if (segments.length != 3 || segments[0] != 'join') return;
+    _lastHandledUri = uri;
     switch (segments[1]) {
       case 'group':
         _startJoin(_JoinKind.group, segments[2]);

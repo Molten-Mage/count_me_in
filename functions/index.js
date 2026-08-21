@@ -18,6 +18,7 @@ const PREF_KEY_BY_TYPE = {
   group_threshold: "groupThreshold",
   group_goal_reached: "groupGoalReached",
   group_quiet: "groupQuiet",
+  group_joined: "groupMemberJoined",
   challenge_halfway: "challengeHalfway",
   challenge_deadline: "challengeDeadline",
   challenge_passed: "challengePassed",

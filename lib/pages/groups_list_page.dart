@@ -124,12 +124,14 @@ class _GroupsListPageState extends State<GroupsListPage> {
     String name,
     int? target,
     bool adminControlled,
+    bool freeForAll,
   ) async {
     try {
       await _groupService.createGroup(
         name: name,
         target: target,
         adminControlled: adminControlled,
+        freeForAll: freeForAll,
       );
     } on FirebaseException catch (e) {
       if (!mounted) return;
@@ -357,7 +359,8 @@ class _GroupsListPageState extends State<GroupsListPage> {
 }
 
 class _CreateGroupDialog extends StatefulWidget {
-  final void Function(String name, int? target, bool adminControlled) onCreate;
+  final void Function(String name, int? target, bool adminControlled, bool freeForAll)
+  onCreate;
 
   const _CreateGroupDialog({required this.onCreate});
 
@@ -369,7 +372,7 @@ class _CreateGroupDialogState extends State<_CreateGroupDialog> {
   final _nameController = TextEditingController();
   final _targetController = TextEditingController();
   bool _hasTarget = false;
-  bool _adminControlled = false;
+  TallyControl _tallyControl = TallyControl.member;
 
   @override
   void dispose() {
@@ -432,29 +435,36 @@ class _CreateGroupDialogState extends State<_CreateGroupDialog> {
           const SizedBox(height: 16),
           Text('Who controls tallies?', style: Theme.of(context).textTheme.titleSmall),
           const SizedBox(height: 8),
-          SegmentedButton<bool>(
+          SegmentedButton<TallyControl>(
             showSelectedIcon: false,
             segments: const [
               ButtonSegment(
-                value: false,
-                label: Text('Members', maxLines: 1, overflow: TextOverflow.ellipsis),
+                value: TallyControl.member,
+                label: Text('Member', maxLines: 1, overflow: TextOverflow.ellipsis),
                 icon: Icon(Icons.people_outline),
               ),
               ButtonSegment(
-                value: true,
+                value: TallyControl.admin,
                 label: Text('Admin', maxLines: 1, overflow: TextOverflow.ellipsis),
                 icon: Icon(Icons.shield_outlined),
               ),
+              ButtonSegment(
+                value: TallyControl.free,
+                label: Text('Free', maxLines: 1, overflow: TextOverflow.ellipsis),
+                icon: Icon(Icons.all_inclusive),
+              ),
             ],
-            selected: {_adminControlled},
+            selected: {_tallyControl},
             onSelectionChanged: (selection) =>
-                setState(() => _adminControlled = selection.first),
+                setState(() => _tallyControl = selection.first),
           ),
           const SizedBox(height: 4),
           Text(
-            _adminControlled
-                ? 'Only you will be able to update members\' tallies.'
-                : 'Each member can update their own tally.',
+            switch (_tallyControl) {
+              TallyControl.admin => 'Only you will be able to update members\' tallies.',
+              TallyControl.free => 'Everyone can update everyone\'s tally.',
+              TallyControl.member => 'Each member can update their own tally.',
+            },
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
@@ -470,7 +480,12 @@ class _CreateGroupDialogState extends State<_CreateGroupDialog> {
                     if (name.isEmpty) return;
 
                     Navigator.of(context).pop();
-                    widget.onCreate(name, _hasTarget ? target : null, _adminControlled);
+                    widget.onCreate(
+                      name,
+                      _hasTarget ? target : null,
+                      _tallyControl == TallyControl.admin,
+                      _tallyControl == TallyControl.free,
+                    );
                   }
                 : null,
           ),

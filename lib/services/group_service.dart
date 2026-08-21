@@ -126,6 +126,7 @@ class GroupService {
     required String name,
     int? target,
     bool adminControlled = false,
+    bool freeForAll = false,
   }) async {
     final code = await _generateUniqueCode();
     final now = DateTime.now();
@@ -139,6 +140,7 @@ class GroupService {
       createdAt: now,
       memberIds: [_uid],
       adminControlled: adminControlled,
+      freeForAll: freeForAll,
     );
     final batch = _firestore.batch();
     batch.set(docRef, group.toFirestore());
@@ -165,14 +167,18 @@ class GroupService {
       throw StateError('No group found with that code.');
     }
     final doc = query.docs.first;
-    final group = Group.fromFirestore(doc.id, doc.data());
-    if (!group.memberIds.contains(_uid)) {
-      final batch = _firestore.batch();
-      batch.update(doc.reference, {
+    var joined = false;
+    final group = await _firestore.runTransaction((transaction) async {
+      final groupRef = doc.reference;
+      final groupSnapshot = await transaction.get(groupRef);
+      final group = Group.fromFirestore(groupSnapshot.id, groupSnapshot.data()!);
+      if (group.memberIds.contains(_uid)) return group;
+
+      transaction.update(groupRef, {
         'memberIds': FieldValue.arrayUnion([_uid]),
       });
-      batch.set(
-        doc.reference.collection('members').doc(_uid),
+      transaction.set(
+        groupRef.collection('members').doc(_uid),
         GroupMember(
           uid: _uid,
           displayName: _displayName,
@@ -180,9 +186,22 @@ class GroupService {
           joinedAt: DateTime.now(),
         ).toFirestore(),
       );
-      await batch.commit();
-      await analyticsService.logGroupJoined();
-    }
+
+      final notifications = _firestore.collection('pushNotifications');
+      for (final recipientUid in group.memberIds) {
+        transaction.set(notifications.doc(), {
+          'recipientUid': recipientUid,
+          'type': 'group_joined',
+          'title': group.name,
+          'body': '$_displayName joined the group!',
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      }
+
+      joined = true;
+      return group;
+    });
+    if (joined) await analyticsService.logGroupJoined();
     return group;
   }
 

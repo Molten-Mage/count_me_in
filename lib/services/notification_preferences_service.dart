@@ -9,6 +9,7 @@ class NotificationPreferences {
   final bool groupThreshold;
   final bool groupGoalReached;
   final bool groupQuiet;
+  final bool groupMemberJoined;
   final bool challengeHalfway;
   final bool challengeDeadline;
   final bool challengePassed;
@@ -19,6 +20,7 @@ class NotificationPreferences {
     this.groupThreshold = true,
     this.groupGoalReached = true,
     this.groupQuiet = true,
+    this.groupMemberJoined = true,
     this.challengeHalfway = true,
     this.challengeDeadline = true,
     this.challengePassed = true,
@@ -31,6 +33,7 @@ class NotificationPreferences {
         groupThreshold: data?['groupThreshold'] as bool? ?? true,
         groupGoalReached: data?['groupGoalReached'] as bool? ?? true,
         groupQuiet: data?['groupQuiet'] as bool? ?? true,
+        groupMemberJoined: data?['groupMemberJoined'] as bool? ?? true,
         challengeHalfway: data?['challengeHalfway'] as bool? ?? true,
         challengeDeadline: data?['challengeDeadline'] as bool? ?? true,
         challengePassed: data?['challengePassed'] as bool? ?? true,
@@ -78,6 +81,9 @@ class NotificationPreferencesService {
       _setPref('groupGoalReached', value);
 
   Future<void> setGroupQuiet(bool value) => _setPref('groupQuiet', value);
+
+  Future<void> setGroupMemberJoined(bool value) =>
+      _setPref('groupMemberJoined', value);
 
   Future<void> setChallengeHalfway(bool value) =>
       _setPref('challengeHalfway', value);

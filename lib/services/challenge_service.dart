@@ -350,27 +350,29 @@ class ChallengeService {
   }
 
   Future<void> _joinChallenge(DocumentReference<Map<String, dynamic>> ref) async {
-    final snapshot = await ref.get();
-    final data = snapshot.data();
-    if (data == null) throw StateError('Challenge not found.');
-    final challenge = Challenge.fromFirestore(snapshot.id, data);
-    if (challenge.memberIds.contains(_uid)) return;
+    var joined = false;
+    await _firestore.runTransaction((transaction) async {
+      final snapshot = await transaction.get(ref);
+      final data = snapshot.data();
+      if (data == null) throw StateError('Challenge not found.');
+      final challenge = Challenge.fromFirestore(snapshot.id, data);
+      if (challenge.memberIds.contains(_uid)) return;
 
-    final batch = _firestore.batch();
-    batch.update(ref, {
-      'memberIds': FieldValue.arrayUnion([_uid]),
+      transaction.update(ref, {
+        'memberIds': FieldValue.arrayUnion([_uid]),
+      });
+      transaction.set(
+        ref.collection('participants').doc(_uid),
+        ChallengeParticipant(
+          uid: _uid,
+          displayName: _displayName,
+          joinedAt: DateTime.now(),
+          tallies: const {},
+        ).toFirestore(),
+      );
+      joined = true;
     });
-    batch.set(
-      ref.collection('participants').doc(_uid),
-      ChallengeParticipant(
-        uid: _uid,
-        displayName: _displayName,
-        joinedAt: DateTime.now(),
-        tallies: const {},
-      ).toFirestore(),
-    );
-    await batch.commit();
-    await analyticsService.logChallengeJoined();
+    if (joined) await analyticsService.logChallengeJoined();
   }
 
   Future<Challenge> joinChallengeByCode(String code) async {

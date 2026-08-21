@@ -77,6 +77,17 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
                     ? (value) => _service.setGroupQuiet(value)
                     : null,
               ),
+              SwitchListTile(
+                secondary: const Icon(Icons.person_add_alt_outlined),
+                title: const Text('Someone joins'),
+                subtitle: const Text(
+                  'Notify me when someone joins a group I\'m in',
+                ),
+                value: prefs.groupMemberJoined,
+                onChanged: prefs.allEnabled
+                    ? (value) => _service.setGroupMemberJoined(value)
+                    : null,
+              ),
               const _SectionHeader('Challenges'),
               SwitchListTile(
                 secondary: const Icon(Icons.flag_outlined),

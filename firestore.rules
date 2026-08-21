@@ -131,15 +131,17 @@ service cloud.firestore {
         // In a member-controlled group (the default, and legacy groups
         // predating the `adminControlled` field) each member updates their
         // own doc. In an admin-controlled group only the group's creator
-        // can update any member's doc, including their own. Either the
-        // `tally` field changes (kept a non-negative int within a sane
-        // bound - previously any value, including negative or unbounded,
-        // was accepted here with no server-side check, relying only on the
-        // app's client-side clamping; keep this bound in sync with
-        // `maxCounterInput` in lib/widgets/app_dialog.dart), or - as a
-        // separate write, from GroupService._maybeNotifyThreshold - just
-        // `notifiedThresholdFor` changes, recording that this member's
-        // 80%-of-target push notification has already gone out.
+        // can update any member's doc, including their own. In a
+        // free-for-all group (`freeForAll`) any current member can update
+        // any other member's doc. Either the `tally` field changes (kept a
+        // non-negative int within a sane bound - previously any value,
+        // including negative or unbounded, was accepted here with no
+        // server-side check, relying only on the app's client-side
+        // clamping; keep this bound in sync with `maxCounterInput` in
+        // lib/widgets/app_dialog.dart), or - as a separate write, from
+        // GroupService._maybeNotifyThreshold - just `notifiedThresholdFor`
+        // changes, recording that this member's 80%-of-target push
+        // notification has already gone out.
         allow update: if request.auth != null
           && (
             (
@@ -148,6 +150,11 @@ service cloud.firestore {
             )
             || request.auth.uid
               == get(/databases/$(database)/documents/groups/$(groupId)).data.createdBy
+            || (
+              get(/databases/$(database)/documents/groups/$(groupId)).data.get('freeForAll', false)
+              && request.auth.uid
+                in get(/databases/$(database)/documents/groups/$(groupId)).data.memberIds
+            )
           )
           && (
             (
