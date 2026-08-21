@@ -2,11 +2,14 @@
 
 All notable changes to Count Me In are recorded here, newest first.
 
-The current shipped version is `1.0.0+1` (see `pubspec.yaml`). Anything
-under **Unreleased** hasn't gone out in a build yet, since App Store/Play
+The current shipped version is `1.0.0+1` (see `pubspec.yaml` for what's
+building locally, which may be ahead of it). Anything under
+**Unreleased** hasn't gone out in a build yet, since App Store/Play
 Store releases are cut manually, not on every commit.
 
 ## Unreleased
+
+## 1.1.1+2
 
 ### Added
 - Deep link landing page (`cf-pages/404.html`) now redirects straight to
@@ -33,6 +36,12 @@ Store releases are cut manually, not on every commit.
   `app_links` package). Joins are now atomic (wrapped in a Firestore
   transaction), and the deep link handler ignores an exact repeat of the
   last link it handled.
+- Universal Links never actually worked on a real device, even with the
+  app installed - this machine had no Apple Distribution certificate, so
+  every archive (including whatever got submitted as `1.0.0+1`) was
+  silently signed with a Development certificate instead. Not a code
+  change: fixed by generating a Distribution certificate in Xcode
+  (Settings > Accounts > Manage Certificates) and re-archiving.
 
 ## 1.0.0+1
 
