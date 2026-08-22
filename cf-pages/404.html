@@ -69,11 +69,14 @@
         '<code>' + code + '</code> once it\'s installed.';
     }
 
-    // If we got here, the app isn't installed (or a third-party in-app
-    // browser swallowed the link before iOS's Universal Links could act on
-    // it - see TODO.md). Either way, send them to the App Store; the button
-    // above still works if the redirect gets blocked.
-    window.location.replace(document.getElementById('store-link').href);
+    // No auto-redirect to the App Store here on purpose: landing on this
+    // page doesn't reliably mean the app isn't installed - Universal Links
+    // can flash the app open then still fall back to Safari (an iOS-level
+    // race, see TODO.md), and a forced redirect in that case fights the
+    // Smart App Banner above (apple-itunes-app meta tag), which already
+    // offers the correct native "Open" action when the app is present.
+    // "Get the app" stays as the manual path for when it's genuinely not
+    // installed.
   </script>
 </body>
 </html>

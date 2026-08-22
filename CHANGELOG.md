@@ -9,6 +9,17 @@ Store releases are cut manually, not on every commit.
 
 ## Unreleased
 
+### Fixed
+- Removed the auto-redirect to the App Store from the deep link landing
+  page (`cf-pages/404.html`, added in 1.1.1+2 below). Landing on that
+  page doesn't reliably mean the app isn't installed - Universal Links
+  can flash the app open then still fall back to Safari (an iOS-level
+  race), and the forced redirect fought the Smart App Banner's correct
+  "Open" behavior in exactly that case, turning a working-ish link tap
+  into a confusing App Store detour. "Get the app" is now a manual
+  button again; the Smart Banner still offers native "Open" when the
+  app's present. Cloudflare-only change, no app rebuild needed.
+
 ## 1.1.1+2
 
 ### Added
