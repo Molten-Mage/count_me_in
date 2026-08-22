@@ -19,6 +19,16 @@ Store releases are cut manually, not on every commit.
   into a confusing App Store detour. "Get the app" is now a manual
   button again; the Smart Banner still offers native "Open" when the
   app's present. Cloudflare-only change, no app rebuild needed.
+- FCM push token could silently never get saved on iOS - `getToken()`
+  can throw if called before APNs finishes registering the device, most
+  likely right after a fresh install, and the call had no error handling
+  (fire-and-forget from `auth_gate.dart`), so the failure was invisible.
+  Confirmed via Cloud Function logs: a `group_joined` notification was
+  skipped with "no fcmToken on file" for an account that had notification
+  permission fully granted. `PushNotificationService._getTokenWithRetry`
+  now retries up to 5 times with a 2s delay. **Needs an app rebuild to
+  take effect** - relaunching the currently-installed 1.1.1 build won't
+  retry anything.
 
 ## 1.1.1+2
 

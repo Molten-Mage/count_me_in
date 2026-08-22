@@ -48,7 +48,7 @@ class PushNotificationService {
           sound: true,
         );
 
-    final token = await FirebaseMessaging.instance.getToken();
+    final token = await _getTokenWithRetry();
     if (token != null) await _saveToken(uid, token);
 
     if (!_listeningForRefresh) {
@@ -58,6 +58,22 @@ class PushNotificationService {
         if (currentUid != null) _saveToken(currentUid, newToken);
       });
     }
+  }
+
+  /// On iOS, getToken() can throw if called before APNs has finished
+  /// registering the device - most likely right after a fresh install,
+  /// which is exactly when init() first runs. Retries with a short delay
+  /// instead of letting the token silently never get saved.
+  Future<String?> _getTokenWithRetry() async {
+    for (var attempt = 0; attempt < 5; attempt++) {
+      try {
+        return await FirebaseMessaging.instance.getToken();
+      } catch (e) {
+        _log('getToken attempt $attempt failed: $e');
+        await Future.delayed(const Duration(seconds: 2));
+      }
+    }
+    return null;
   }
 
   Future<void> _saveToken(String uid, String token) async {
