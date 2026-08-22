@@ -9,6 +9,8 @@ Store releases are cut manually, not on every commit.
 
 ## Unreleased
 
+## 1.1.2+3
+
 ### Added
 - Two new notification types, each with its own toggle in Settings >
   Notifications, on top of (not replacing) the existing "Someone joins"
@@ -17,10 +19,7 @@ Store releases are cut manually, not on every commit.
     toggleable from the existing "notify me for any group I'm in" one.
   - "Someone joins your challenge" - challenges had no join notification
     at all before this.
-  Needs `firebase deploy --only functions` to actually respect the new
-  toggles (the functions side falls back to sending if it doesn't
-  recognize a notification type, so pushes go out either way - the
-  toggle just won't be honored until deployed).
+  Cloud Functions side deployed and live.
 
 ### Fixed
 - Removed the auto-redirect to the App Store from the deep link landing
