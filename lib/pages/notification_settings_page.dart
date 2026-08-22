@@ -88,6 +88,17 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
                     ? (value) => _service.setGroupMemberJoined(value)
                     : null,
               ),
+              SwitchListTile(
+                secondary: const Icon(Icons.shield_outlined),
+                title: const Text('Someone joins your group'),
+                subtitle: const Text(
+                  'Notify me when someone joins a group I created',
+                ),
+                value: prefs.myGroupMemberJoined,
+                onChanged: prefs.allEnabled
+                    ? (value) => _service.setMyGroupMemberJoined(value)
+                    : null,
+              ),
               const _SectionHeader('Challenges'),
               SwitchListTile(
                 secondary: const Icon(Icons.flag_outlined),
@@ -122,6 +133,17 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
                 value: prefs.challengePassed,
                 onChanged: prefs.allEnabled
                     ? (value) => _service.setChallengePassed(value)
+                    : null,
+              ),
+              SwitchListTile(
+                secondary: const Icon(Icons.shield_outlined),
+                title: const Text('Someone joins your challenge'),
+                subtitle: const Text(
+                  'Notify me when someone joins a challenge I created',
+                ),
+                value: prefs.myChallengeMemberJoined,
+                onChanged: prefs.allEnabled
+                    ? (value) => _service.setMyChallengeMemberJoined(value)
                     : null,
               ),
               const _SectionHeader('Personal counters'),

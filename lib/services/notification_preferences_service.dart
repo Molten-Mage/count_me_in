@@ -10,9 +10,11 @@ class NotificationPreferences {
   final bool groupGoalReached;
   final bool groupQuiet;
   final bool groupMemberJoined;
+  final bool myGroupMemberJoined;
   final bool challengeHalfway;
   final bool challengeDeadline;
   final bool challengePassed;
+  final bool myChallengeMemberJoined;
   final bool counterInactivity;
 
   const NotificationPreferences({
@@ -21,9 +23,11 @@ class NotificationPreferences {
     this.groupGoalReached = true,
     this.groupQuiet = true,
     this.groupMemberJoined = true,
+    this.myGroupMemberJoined = true,
     this.challengeHalfway = true,
     this.challengeDeadline = true,
     this.challengePassed = true,
+    this.myChallengeMemberJoined = true,
     this.counterInactivity = true,
   });
 
@@ -34,9 +38,12 @@ class NotificationPreferences {
         groupGoalReached: data?['groupGoalReached'] as bool? ?? true,
         groupQuiet: data?['groupQuiet'] as bool? ?? true,
         groupMemberJoined: data?['groupMemberJoined'] as bool? ?? true,
+        myGroupMemberJoined: data?['myGroupMemberJoined'] as bool? ?? true,
         challengeHalfway: data?['challengeHalfway'] as bool? ?? true,
         challengeDeadline: data?['challengeDeadline'] as bool? ?? true,
         challengePassed: data?['challengePassed'] as bool? ?? true,
+        myChallengeMemberJoined:
+            data?['myChallengeMemberJoined'] as bool? ?? true,
         counterInactivity: data?['counterInactivity'] as bool? ?? true,
       );
 }
@@ -85,6 +92,9 @@ class NotificationPreferencesService {
   Future<void> setGroupMemberJoined(bool value) =>
       _setPref('groupMemberJoined', value);
 
+  Future<void> setMyGroupMemberJoined(bool value) =>
+      _setPref('myGroupMemberJoined', value);
+
   Future<void> setChallengeHalfway(bool value) =>
       _setPref('challengeHalfway', value);
 
@@ -93,6 +103,9 @@ class NotificationPreferencesService {
 
   Future<void> setChallengePassed(bool value) =>
       _setPref('challengePassed', value);
+
+  Future<void> setMyChallengeMemberJoined(bool value) =>
+      _setPref('myChallengeMemberJoined', value);
 
   Future<void> setCounterInactivity(bool value) =>
       _setPref('counterInactivity', value);

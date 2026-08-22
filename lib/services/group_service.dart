@@ -197,6 +197,16 @@ class GroupService {
           'createdAt': FieldValue.serverTimestamp(),
         });
       }
+      // Separate, independently-toggleable notification just for the
+      // group's creator (a stricter subset of the loop above, which
+      // already covers every member including the creator).
+      transaction.set(notifications.doc(), {
+        'recipientUid': group.createdBy,
+        'type': 'group_joined_owner',
+        'title': group.name,
+        'body': '$_displayName joined your group!',
+        'createdAt': FieldValue.serverTimestamp(),
+      });
 
       joined = true;
       return group;

@@ -19,9 +19,11 @@ const PREF_KEY_BY_TYPE = {
   group_goal_reached: "groupGoalReached",
   group_quiet: "groupQuiet",
   group_joined: "groupMemberJoined",
+  group_joined_owner: "myGroupMemberJoined",
   challenge_halfway: "challengeHalfway",
   challenge_deadline: "challengeDeadline",
   challenge_passed: "challengePassed",
+  challenge_joined_owner: "myChallengeMemberJoined",
   counter_inactivity: "counterInactivity",
 };
 

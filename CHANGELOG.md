@@ -9,6 +9,19 @@ Store releases are cut manually, not on every commit.
 
 ## Unreleased
 
+### Added
+- Two new notification types, each with its own toggle in Settings >
+  Notifications, on top of (not replacing) the existing "Someone joins"
+  group toggle:
+  - "Someone joins your group" - only for groups you created, separately
+    toggleable from the existing "notify me for any group I'm in" one.
+  - "Someone joins your challenge" - challenges had no join notification
+    at all before this.
+  Needs `firebase deploy --only functions` to actually respect the new
+  toggles (the functions side falls back to sending if it doesn't
+  recognize a notification type, so pushes go out either way - the
+  toggle just won't be honored until deployed).
+
 ### Fixed
 - Removed the auto-redirect to the App Store from the deep link landing
   page (`cf-pages/404.html`, added in 1.1.1+2 below). Landing on that

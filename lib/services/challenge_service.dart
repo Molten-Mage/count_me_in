@@ -370,6 +370,13 @@ class ChallengeService {
           tallies: const {},
         ).toFirestore(),
       );
+      transaction.set(_firestore.collection('pushNotifications').doc(), {
+        'recipientUid': challenge.createdBy,
+        'type': 'challenge_joined_owner',
+        'title': challenge.name,
+        'body': '$_displayName joined your challenge!',
+        'createdAt': FieldValue.serverTimestamp(),
+      });
       joined = true;
     });
     if (joined) await analyticsService.logChallengeJoined();
