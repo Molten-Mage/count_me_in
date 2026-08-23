@@ -1,3 +1,6 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../services/notification_preferences_service.dart';
@@ -159,11 +162,50 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
                     ? (value) => _service.setCounterInactivity(value)
                     : null,
               ),
+              if (kDebugMode) ...[
+                const _SectionHeader('Debug'),
+                ListTile(
+                  leading: const Icon(Icons.bug_report_outlined),
+                  title: const Text('Send test notification'),
+                  subtitle: const Text(
+                    'Sends a real push through the full pipeline (Firestore '
+                    "-> Cloud Function -> FCM) to this account's own device",
+                  ),
+                  onTap: _sendTestNotification,
+                ),
+              ],
             ],
           );
         },
       ),
     );
+  }
+
+  Future<void> _sendTestNotification() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+    try {
+      await FirebaseFirestore.instance.collection('pushNotifications').add({
+        'recipientUid': uid,
+        'type': 'debug_test',
+        'title': 'Test notification',
+        'body': 'If you see this, push delivery is working.',
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Sent - check the Cloud Function logs or wait for the push.',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to send: $e')));
+    }
   }
 }
 

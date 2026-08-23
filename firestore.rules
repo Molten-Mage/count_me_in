@@ -41,9 +41,18 @@ service cloud.firestore {
     // 80%-threshold check in GroupService). No client ever reads, updates,
     // or deletes these; the Cloud Function deletes each doc once handled.
     match /pushNotifications/{id} {
+      // Self-targeting is normally blocked (no legitimate notification type
+      // ever needs to notify its own sender) except for `debug_test`, which
+      // exists solely so the debug-only "Send test notification" button
+      // (notification_settings_page.dart) can verify the full delivery
+      // pipeline - Firestore write -> sendPushNotification -> FCM - without
+      // needing another signed-in device to trigger a real notification.
       allow create: if request.auth != null
         && request.resource.data.recipientUid is string
-        && request.resource.data.recipientUid != request.auth.uid
+        && (
+          request.resource.data.recipientUid != request.auth.uid
+          || request.resource.data.type == 'debug_test'
+        )
         && request.resource.data.type is string
         && request.resource.data.title is string
         && request.resource.data.body is string

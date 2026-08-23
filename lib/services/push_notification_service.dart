@@ -60,11 +60,23 @@ class PushNotificationService {
     }
   }
 
-  /// On iOS, getToken() can throw if called before APNs has finished
-  /// registering the device - most likely right after a fresh install,
-  /// which is exactly when init() first runs. Retries with a short delay
-  /// instead of letting the token silently never get saved.
+  /// On iOS/macOS, getToken() throws apns-token-not-set if called before
+  /// APNs has finished registering the device - most likely right after a
+  /// fresh install, which is exactly when init() first runs. Firebase's own
+  /// error message says to wait for getAPNSToken() first, so poll for that
+  /// before ever calling getToken(), then retry getToken() itself too as a
+  /// safety net rather than letting the token silently never get saved.
   Future<String?> _getTokenWithRetry() async {
+    if (defaultTargetPlatform == TargetPlatform.iOS ||
+        defaultTargetPlatform == TargetPlatform.macOS) {
+      for (var attempt = 0; attempt < 10; attempt++) {
+        final apnsToken = await FirebaseMessaging.instance.getAPNSToken();
+        if (apnsToken != null) break;
+        _log('APNs token not set yet, attempt $attempt');
+        await Future.delayed(const Duration(seconds: 1));
+      }
+    }
+
     for (var attempt = 0; attempt < 5; attempt++) {
       try {
         return await FirebaseMessaging.instance.getToken();
