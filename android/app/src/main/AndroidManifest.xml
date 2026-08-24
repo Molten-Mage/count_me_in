@@ -48,8 +48,8 @@
                  lets invite links open the app directly without needing the
                  countmein:// scheme, and falls back to the landing page at
                  that URL if the app isn't installed. NOTE: assetlinks.json
-                 currently declares package_name "com.example.count_me_in"
-                 (the applicationId below) — update it there if that ever
+                 declares package_name "com.moltenmage.countmein" (the
+                 applicationId below) — update it there if that ever
                  changes. -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW"/>

@@ -3,7 +3,7 @@
     "relation": ["delegate_permission/common.handle_all_urls"],
     "target": {
       "namespace": "android_app",
-      "package_name": "com.example.count_me_in",
+      "package_name": "com.moltenmage.countmein",
       "sha256_cert_fingerprints": [
         "61:95:77:BF:85:23:4E:54:E1:CF:4F:39:68:64:43:2C:E4:70:58:23:EF:BE:CE:C1:23:41:CB:25:5B:B7:CD:05"
       ]

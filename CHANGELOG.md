@@ -2,12 +2,44 @@
 
 All notable changes to Count Me In are recorded here, newest first.
 
-The current shipped version is `1.0.0+1` (see `pubspec.yaml` for what's
+The current shipped version is `1.1.1+2` (see `pubspec.yaml` for what's
 building locally, which may be ahead of it). Anything under
 **Unreleased** hasn't gone out in a build yet, since App Store/Play
 Store releases are cut manually, not on every commit.
 
 ## Unreleased
+
+### Added
+- Debug-only "Send test notification" button (Settings > Notifications,
+  only visible in `kDebugMode` builds) that sends a real push through the
+  full pipeline - Firestore write -> `sendPushNotification` -> FCM -
+  without needing a second account/device to trigger one. Needed a
+  narrow Firestore rules carve-out: `pushNotifications` writes normally
+  can't target yourself (`recipientUid != request.auth.uid`, to prevent
+  self-spam), except for `type == 'debug_test'`.
+
+### Fixed
+- The real reason push notifications never worked, in any build,
+  regardless of the 1.1.2+3 retry fix below: two separate things were
+  missing, found by working through this debug button end-to-end and
+  watching both the client logs and the Cloud Function logs.
+  1. `ios/Runner/Runner.entitlements` never had an `aps-environment` key
+     - the Push Notifications capability was never actually added in
+     Xcode, so `firebase_messaging`'s APNs device token registration
+     silently never completed (`apns-token-not-set`, forever, not just
+     slow). `PushNotificationService._getTokenWithRetry` also now
+     explicitly waits on `getAPNSToken()` before ever calling
+     `getToken()`, per Firebase's own error message, instead of just
+     blindly retrying `getToken()` and hoping APNs won the race.
+  2. Firebase Console had no APNs Authentication Key uploaded at all for
+     the iOS app (Project Settings > Cloud Messaging > Apple app
+     configuration) - so even with a valid FCM token, sending failed
+     server-side with `messaging/third-party-auth-error: Invalid APNs
+     credential`. Fixed by generating a Sandbox & Production auth key in
+     Apple Developer (Certificates, Identifiers & Profiles > Keys) and
+     uploading it there.
+  Confirmed end-to-end via the debug test button: Cloud Function logs
+  now show `"message":"Sent push"` instead of skipping or erroring.
 
 ## 1.1.2+3
 
@@ -32,15 +64,13 @@ Store releases are cut manually, not on every commit.
   button again; the Smart Banner still offers native "Open" when the
   app's present. Cloudflare-only change, no app rebuild needed.
 - FCM push token could silently never get saved on iOS - `getToken()`
-  can throw if called before APNs finishes registering the device, most
-  likely right after a fresh install, and the call had no error handling
-  (fire-and-forget from `auth_gate.dart`), so the failure was invisible.
-  Confirmed via Cloud Function logs: a `group_joined` notification was
-  skipped with "no fcmToken on file" for an account that had notification
-  permission fully granted. `PushNotificationService._getTokenWithRetry`
-  now retries up to 5 times with a 2s delay. **Needs an app rebuild to
-  take effect** - relaunching the currently-installed 1.1.1 build won't
-  retry anything.
+  can throw if called before APNs finishes registering the device, and
+  the call had no error handling (fire-and-forget from `auth_gate.dart`),
+  so the failure was invisible. Added `PushNotificationService
+  ._getTokenWithRetry`. **Turned out to be necessary but not
+  sufficient** - see Unreleased above for the two actual missing pieces
+  (a missing entitlement, and no APNs key in Firebase Console) found
+  after this alone didn't fix it.
 
 ## 1.1.1+2
 

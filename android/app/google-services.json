@@ -31,10 +31,54 @@
               "client_type": 3
             },
             {
-              "client_id": "1057531841336-d5j4npjmblnnuohm4qlub3rdpjpkb38m.apps.googleusercontent.com",
+              "client_id": "1057531841336-2ocol465bkct6k3kj83pvgcjuke1v5gi.apps.googleusercontent.com",
               "client_type": 2,
               "ios_info": {
-                "bundle_id": "com.example.countMeIn"
+                "bundle_id": "com.moltenmage.countmein"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1057531841336:android:6b85be47ab13358a31cfcd",
+        "android_client_info": {
+          "package_name": "com.moltenmage.countmein"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1057531841336-ur1jg8d0ahvkmhdbhh8p58p14k48vvsp.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.moltenmage.countmein",
+            "certificate_hash": "7b5b37078899913f0bb9f2fc8d74793b515b5b09"
+          }
+        },
+        {
+          "client_id": "1057531841336-nk0okpbmq588bhgs6bmrkptgi55hntan.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAQ4LLiTbxhqAvDAoIJbt7JseS1qWArwNo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1057531841336-nk0okpbmq588bhgs6bmrkptgi55hntan.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "1057531841336-2ocol465bkct6k3kj83pvgcjuke1v5gi.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.moltenmage.countmein"
               }
             }
           ]
