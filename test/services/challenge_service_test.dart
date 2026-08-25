@@ -331,6 +331,42 @@ void main() {
     });
   });
 
+  group('propagateDisplayNameChange', () {
+    test(
+      'updates the caller\'s own participant doc across every challenge '
+      'they\'re in, leaves other participants alone',
+      () async {
+        final owner = _serviceFor(firestore, 'u1', displayName: 'Old Name');
+        final other = _serviceFor(firestore, 'u2', displayName: 'Other Person');
+        final challengeA = await owner.createChallenge(
+          name: 'Challenge A',
+          visibility: ChallengeVisibility.public,
+          objectives: _objectives,
+        );
+        final challengeB = await owner.createChallenge(
+          name: 'Challenge B',
+          visibility: ChallengeVisibility.public,
+          objectives: _objectives,
+        );
+        await other.joinChallengeByCode(challengeA.code);
+
+        await owner.propagateDisplayNameChange('New Name');
+
+        final ownerInA = await _getParticipant(firestore, challengeA.id, 'u1');
+        final otherInA = await _getParticipant(firestore, challengeA.id, 'u2');
+        final ownerInB = await _getParticipant(firestore, challengeB.id, 'u1');
+        expect(ownerInA['displayName'], 'New Name');
+        expect(otherInA['displayName'], 'Other Person');
+        expect(ownerInB['displayName'], 'New Name');
+      },
+    );
+
+    test('is a no-op when the caller is not in any challenges', () async {
+      final service = _serviceFor(firestore, 'u1');
+      await service.propagateDisplayNameChange('New Name');
+    });
+  });
+
   group('deleteChallenge', () {
     test('removes the challenge and participants, logs challenge_deleted', () async {
       final service = _serviceFor(firestore, 'u1');

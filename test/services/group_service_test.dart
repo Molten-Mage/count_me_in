@@ -267,6 +267,39 @@ void main() {
     });
   });
 
+  group('propagateDisplayNameChange', () {
+    test('updates the caller\'s own member doc across every group they\'re in, '
+        'leaves other members alone', () async {
+      final owner = _serviceFor(firestore, 'u1', displayName: 'Old Name');
+      final other = _serviceFor(firestore, 'u2', displayName: 'Other Person');
+      final groupA = await owner.createGroup(name: 'Group A');
+      final groupB = await owner.createGroup(name: 'Group B');
+      await other.joinGroupByCode(groupA.code);
+
+      await owner.propagateDisplayNameChange('New Name');
+
+      final membersA = await owner.streamMembers(groupA.id).first;
+      final membersB = await owner.streamMembers(groupB.id).first;
+      expect(
+        membersA.firstWhere((m) => m.uid == 'u1').displayName,
+        'New Name',
+      );
+      expect(
+        membersA.firstWhere((m) => m.uid == 'u2').displayName,
+        'Other Person',
+      );
+      expect(
+        membersB.firstWhere((m) => m.uid == 'u1').displayName,
+        'New Name',
+      );
+    });
+
+    test('is a no-op when the caller is not in any groups', () async {
+      final service = _serviceFor(firestore, 'u1');
+      await service.propagateDisplayNameChange('New Name');
+    });
+  });
+
   group('updateGroup', () {
     test('updates name and target', () async {
       final service = _serviceFor(firestore, 'u1');

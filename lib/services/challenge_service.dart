@@ -129,6 +129,27 @@ class ChallengeService {
     });
   }
 
+  /// Propagates a new display name into every [ChallengeParticipant] doc
+  /// the caller currently has - one per challenge they belong to. Those
+  /// are denormalized snapshots taken at join time and otherwise never
+  /// update on their own, so a Settings rename would otherwise leave every
+  /// existing membership showing the old name indefinitely (new
+  /// joins/creates already pick up the current name naturally, since they
+  /// write it fresh).
+  Future<void> propagateDisplayNameChange(String newName) async {
+    final snapshot = await _challenges
+        .where('memberIds', arrayContains: _uid)
+        .get();
+    if (snapshot.docs.isEmpty) return;
+    final batch = _firestore.batch();
+    for (final doc in snapshot.docs) {
+      batch.update(doc.reference.collection('participants').doc(_uid), {
+        'displayName': newName,
+      });
+    }
+    await batch.commit();
+  }
+
   Future<String> _generateUniqueCode() async {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
     final random = Random();

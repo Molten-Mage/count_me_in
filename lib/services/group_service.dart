@@ -114,6 +114,26 @@ class GroupService {
     );
   }
 
+  /// Propagates a new display name into every [GroupMember] doc the caller
+  /// currently has - one per group they belong to. Those are denormalized
+  /// snapshots taken at join time and otherwise never update on their own,
+  /// so a Settings rename would otherwise leave every existing membership
+  /// showing the old name indefinitely (new joins/creates already pick up
+  /// the current name naturally, since they write it fresh).
+  Future<void> propagateDisplayNameChange(String newName) async {
+    final snapshot = await _groups
+        .where('memberIds', arrayContains: _uid)
+        .get();
+    if (snapshot.docs.isEmpty) return;
+    final batch = _firestore.batch();
+    for (final doc in snapshot.docs) {
+      batch.update(doc.reference.collection('members').doc(_uid), {
+        'displayName': newName,
+      });
+    }
+    await batch.commit();
+  }
+
   /// [description]/[adminControlled]/[freeForAll] are left unchanged when
   /// omitted, so callers that only touch name/target (e.g. the
   /// goal-reached dialog's "set a new goal") don't need to know or care

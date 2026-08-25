@@ -102,7 +102,9 @@ service cloud.firestore {
           )
           || (
             request.auth.uid == resource.data.createdBy
-            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'target'])
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(
+              ['name', 'description', 'target', 'adminControlled', 'freeForAll']
+            )
           )
           || (
             request.auth.uid in resource.data.memberIds
@@ -154,27 +156,42 @@ service cloud.firestore {
         allow update: if request.auth != null
           && (
             (
+              (
+                (
+                  request.auth.uid == memberId
+                  && !get(/databases/$(database)/documents/groups/$(groupId)).data.get('adminControlled', false)
+                )
+                || request.auth.uid
+                  == get(/databases/$(database)/documents/groups/$(groupId)).data.createdBy
+                || (
+                  get(/databases/$(database)/documents/groups/$(groupId)).data.get('freeForAll', false)
+                  && request.auth.uid
+                    in get(/databases/$(database)/documents/groups/$(groupId)).data.memberIds
+                )
+              )
+              && (
+                (
+                  request.resource.data.diff(resource.data).affectedKeys().hasOnly(['tally'])
+                  && request.resource.data.tally is int
+                  && request.resource.data.tally >= 0
+                  && request.resource.data.tally <= 999999
+                )
+                || (
+                  request.resource.data.diff(resource.data).affectedKeys().hasOnly(['notifiedThresholdFor'])
+                  && request.resource.data.notifiedThresholdFor is int
+                )
+              )
+            )
+            // Renaming yourself propagates your current Auth display name
+            // into this denormalized snapshot - always self-service and
+            // independent of the group's tally-control mode above (unlike
+            // `tally`, this isn't a tally-control concern at all), so it's
+            // its own top-level alternative rather than nested under the
+            // permission check above.
+            || (
               request.auth.uid == memberId
-              && !get(/databases/$(database)/documents/groups/$(groupId)).data.get('adminControlled', false)
-            )
-            || request.auth.uid
-              == get(/databases/$(database)/documents/groups/$(groupId)).data.createdBy
-            || (
-              get(/databases/$(database)/documents/groups/$(groupId)).data.get('freeForAll', false)
-              && request.auth.uid
-                in get(/databases/$(database)/documents/groups/$(groupId)).data.memberIds
-            )
-          )
-          && (
-            (
-              request.resource.data.diff(resource.data).affectedKeys().hasOnly(['tally'])
-              && request.resource.data.tally is int
-              && request.resource.data.tally >= 0
-              && request.resource.data.tally <= 999999
-            )
-            || (
-              request.resource.data.diff(resource.data).affectedKeys().hasOnly(['notifiedThresholdFor'])
-              && request.resource.data.notifiedThresholdFor is int
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName'])
+              && request.resource.data.displayName is string
             )
           );
 
@@ -276,6 +293,15 @@ service cloud.firestore {
                 request.resource.data.completedAt == null
                 || request.resource.data.completedAt is timestamp
               )
+            )
+            // Renaming yourself propagates your current Auth display name
+            // into this denormalized snapshot - always self-service, with
+            // no deadline gate (unlike `tallies` above, this isn't a game
+            // mechanic - it should work even on an already-ended challenge).
+            || (
+              request.auth.uid == uid
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName'])
+              && request.resource.data.displayName is string
             )
           );
 
