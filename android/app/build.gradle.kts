@@ -57,6 +57,10 @@ android {
             } else {
                 signingConfigs.getByName("debug")
             }
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
         }
     }
 }
@@ -64,6 +68,15 @@ android {
 kotlin {
     compilerOptions {
         jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
+    }
+}
+
+configurations.all {
+    resolutionStrategy {
+        // google_mobile_ads (play-services-ads-api) transitively pulls in
+        // an old WorkManager (2.7.0) with known WorkDatabase initialization
+        // crashes on some devices - force a patched version instead.
+        force("androidx.work:work-runtime:2.9.1")
     }
 }
 
