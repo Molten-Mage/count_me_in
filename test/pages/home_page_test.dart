@@ -2,7 +2,6 @@ import 'package:count_me_in/models/counter.dart';
 import 'package:count_me_in/pages/home_page.dart';
 import 'package:count_me_in/services/analytics_service.dart';
 import 'package:count_me_in/services/premium_service.dart';
-import 'package:count_me_in/widgets/tally_stepper.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -57,7 +56,8 @@ void main() {
     expect(find.text('Water'), findsOneWidget);
     expect(find.text('Steps'), findsOneWidget);
     expect(find.text('3'), findsOneWidget);
-    expect(find.text('500 / 10000'), findsOneWidget);
+    expect(find.text('500'), findsOneWidget);
+    expect(find.text(' / 10000'), findsOneWidget);
   });
 
   testWidgets('adding a counter saves it, shows it, and logs analytics', (
@@ -79,7 +79,45 @@ void main() {
     expect(fakeAnalytics.events, contains('counter_created'));
   });
 
-  testWidgets('incrementing bumps the displayed count and persists it', (
+  testWidgets(
+    'editing the tally field to a higher value bumps the count and persists it',
+    (tester) async {
+      final storage = FakeCounterStorage([
+        Counter(id: '1', title: 'Water', count: 3, createdAt: DateTime(2026)),
+      ]);
+      await tester.pumpWidget(_wrap(HomePage(storage: storage)));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextField), '9');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+
+      expect(find.text('9'), findsOneWidget);
+      final saved = await storage.loadCounters();
+      expect(saved.single.count, 9);
+    },
+  );
+
+  testWidgets(
+    'editing the tally field to a lower value lowers the count and persists it',
+    (tester) async {
+      final storage = FakeCounterStorage([
+        Counter(id: '1', title: 'Water', count: 5, createdAt: DateTime(2026)),
+      ]);
+      await tester.pumpWidget(_wrap(HomePage(storage: storage)));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextField), '2');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+
+      expect(find.text('2'), findsOneWidget);
+      final saved = await storage.loadCounters();
+      expect(saved.single.count, 2);
+    },
+  );
+
+  testWidgets('tapping + bumps the count by 1 and persists it', (
     tester,
   ) async {
     final storage = FakeCounterStorage([
@@ -88,12 +126,7 @@ void main() {
     await tester.pumpWidget(_wrap(HomePage(storage: storage)));
     await tester.pumpAndSettle();
 
-    await tester.tap(
-      find.descendant(
-        of: find.byType(TallyStepper),
-        matching: find.byIcon(Icons.add),
-      ),
-    );
+    await tester.tap(find.byTooltip('Increase'));
     await tester.pumpAndSettle();
 
     expect(find.text('4'), findsOneWidget);
@@ -101,7 +134,7 @@ void main() {
     expect(saved.single.count, 4);
   });
 
-  testWidgets('decrementing lowers the displayed count, clamped at zero', (
+  testWidgets('tapping - lowers the count by 1, clamped at zero', (
     tester,
   ) async {
     final storage = FakeCounterStorage([
@@ -110,10 +143,12 @@ void main() {
     await tester.pumpWidget(_wrap(HomePage(storage: storage)));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byIcon(Icons.remove));
+    await tester.tap(find.byTooltip('Decrease'));
     await tester.pumpAndSettle();
 
     expect(find.text('0'), findsOneWidget);
+    final saved = await storage.loadCounters();
+    expect(saved.single.count, 0);
   });
 
   testWidgets('deleting a counter in edit mode removes it and logs analytics', (

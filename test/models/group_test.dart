@@ -10,6 +10,7 @@ void main() {
       final group = Group(
         id: 'g1',
         name: 'Family steps',
+        description: '10k steps a day, every day',
         code: 'STEP01',
         target: 100000,
         createdBy: 'u1',
@@ -24,6 +25,7 @@ void main() {
       final restored = Group.fromFirestore('g1', group.toFirestore());
 
       expect(restored.name, 'Family steps');
+      expect(restored.description, '10k steps a day, every day');
       expect(restored.code, 'STEP01');
       expect(restored.target, 100000);
       expect(restored.createdBy, 'u1');
@@ -45,6 +47,7 @@ void main() {
       };
       final restored = Group.fromFirestore('g1', data);
       expect(restored.target, isNull);
+      expect(restored.description, isEmpty);
       expect(restored.badges, isEmpty);
       expect(restored.adminControlled, isFalse);
     });

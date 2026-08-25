@@ -289,7 +289,7 @@ void main() {
     });
   });
 
-  group('updateObjectiveTargets', () {
+  group('updateObjectives', () {
     test('updates target numbers, names/ids stay fixed', () async {
       final service = _serviceFor(firestore, 'u1');
       final challenge = await service.createChallenge(
@@ -298,12 +298,36 @@ void main() {
         objectives: _objectives,
       );
 
-      await service.updateObjectiveTargets(challenge.id, [
+      await service.updateObjectives(challenge.id, [
         const ChallengeObjective(id: 'obj_0', name: 'Push-ups', target: 200),
       ]);
 
       final stored = await _getChallenge(firestore, challenge.id);
       expect(stored.objectives.single.target, 200);
+    });
+
+    test('can add and remove objectives', () async {
+      final service = _serviceFor(firestore, 'u1');
+      final challenge = await service.createChallenge(
+        name: 'Test',
+        visibility: ChallengeVisibility.public,
+        objectives: const [(name: 'Push-ups', target: 100)],
+      );
+
+      await service.updateObjectives(challenge.id, const [
+        ChallengeObjective(id: 'obj_0', name: 'Push-ups', target: 100),
+        ChallengeObjective(id: 'obj_1', name: 'Sit-ups', target: 50),
+      ]);
+
+      final stored = await _getChallenge(firestore, challenge.id);
+      expect(stored.objectives.map((o) => o.name), ['Push-ups', 'Sit-ups']);
+
+      await service.updateObjectives(challenge.id, const [
+        ChallengeObjective(id: 'obj_1', name: 'Sit-ups', target: 50),
+      ]);
+
+      final afterRemoval = await _getChallenge(firestore, challenge.id);
+      expect(afterRemoval.objectives.single.name, 'Sit-ups');
     });
   });
 

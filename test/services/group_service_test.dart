@@ -278,5 +278,67 @@ void main() {
       expect(updated.name, 'New name');
       expect(updated.target, 50);
     });
+
+    test('updates tally control mode', () async {
+      final service = _serviceFor(firestore, 'u1');
+      final group = await service.createGroup(name: 'Test');
+      expect(group.tallyControl, TallyControl.member);
+
+      await service.updateGroup(
+        group.id,
+        name: group.name,
+        target: group.target,
+        adminControlled: true,
+        freeForAll: false,
+      );
+
+      final admin = await service.streamGroup(group.id).first;
+      expect(admin.tallyControl, TallyControl.admin);
+
+      await service.updateGroup(
+        group.id,
+        name: group.name,
+        target: group.target,
+        adminControlled: false,
+        freeForAll: true,
+      );
+
+      final free = await service.streamGroup(group.id).first;
+      expect(free.tallyControl, TallyControl.free);
+    });
+
+    test('leaves tally control mode unchanged when omitted', () async {
+      final service = _serviceFor(firestore, 'u1');
+      final group = await service.createGroup(
+        name: 'Test',
+        adminControlled: true,
+      );
+
+      await service.updateGroup(group.id, name: 'Renamed', target: null);
+
+      final updated = await service.streamGroup(group.id).first;
+      expect(updated.tallyControl, TallyControl.admin);
+    });
+
+    test('updates description, leaves it unchanged when omitted', () async {
+      final service = _serviceFor(firestore, 'u1');
+      final group = await service.createGroup(
+        name: 'Test',
+        description: 'Original description',
+      );
+
+      await service.updateGroup(
+        group.id,
+        name: group.name,
+        target: group.target,
+        description: 'Updated description',
+      );
+      final updated = await service.streamGroup(group.id).first;
+      expect(updated.description, 'Updated description');
+
+      await service.updateGroup(group.id, name: 'Renamed', target: null);
+      final renamed = await service.streamGroup(group.id).first;
+      expect(renamed.description, 'Updated description');
+    });
   });
 }
