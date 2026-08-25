@@ -1,6 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../models/group.dart';
 import '../models/group_member.dart';
@@ -11,6 +10,7 @@ import '../widgets/confirm_delete_dialog.dart';
 import '../widgets/error_dialog.dart';
 import '../widgets/paywall_dialog.dart';
 import 'group_detail_page.dart';
+import 'group_form_page.dart';
 
 class GroupsListPage extends StatefulWidget {
   final bool active;
@@ -110,44 +110,12 @@ class _GroupsListPageState extends State<GroupsListPage> {
     );
   }
 
-  Future<void> _showCreateGroupDialog() async {
-    await showDialog<void>(
-      context: context,
-      builder: (context) => _CreateGroupDialog(onCreate: _createGroup),
+  Future<void> _openCreateGroupPage() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => GroupFormPage(groupService: _groupService),
+      ),
     );
-  }
-
-  // Closes the dialog immediately (assuming success) rather than waiting on
-  // the network round-trip; shows an error popup on top of the groups list
-  // in the rare case it actually fails.
-  Future<void> _createGroup(
-    String name,
-    int? target,
-    bool adminControlled,
-    bool freeForAll,
-  ) async {
-    try {
-      await _groupService.createGroup(
-        name: name,
-        target: target,
-        adminControlled: adminControlled,
-        freeForAll: freeForAll,
-      );
-    } on FirebaseException catch (e) {
-      if (!mounted) return;
-      showErrorDialog(
-        context,
-        title: "Couldn't create group",
-        message: e.message ?? 'Something went wrong. Please try again.',
-      );
-    } catch (_) {
-      if (!mounted) return;
-      showErrorDialog(
-        context,
-        title: "Couldn't create group",
-        message: 'Something went wrong. Please try again.',
-      );
-    }
   }
 
   Future<void> _showJoinGroupDialog() async {
@@ -202,7 +170,7 @@ class _GroupsListPageState extends State<GroupsListPage> {
                     showPaywallDialog(context);
                     return;
                   }
-                  _showCreateGroupDialog();
+                  _openCreateGroupPage();
                 },
               ),
               ListTile(
@@ -353,143 +321,6 @@ class _GroupsListPageState extends State<GroupsListPage> {
         onPressed: _showAddOptions,
         tooltip: 'Add group',
         child: const Icon(Icons.add),
-      ),
-    );
-  }
-}
-
-class _CreateGroupDialog extends StatefulWidget {
-  final void Function(String name, int? target, bool adminControlled, bool freeForAll)
-  onCreate;
-
-  const _CreateGroupDialog({required this.onCreate});
-
-  @override
-  State<_CreateGroupDialog> createState() => _CreateGroupDialogState();
-}
-
-class _CreateGroupDialogState extends State<_CreateGroupDialog> {
-  final _nameController = TextEditingController();
-  final _targetController = TextEditingController();
-  bool _hasTarget = false;
-  TallyControl _tallyControl = TallyControl.member;
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _targetController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    const currentTotal = 0;
-    final target = int.tryParse(_targetController.text);
-    final isTargetValid =
-        !_hasTarget ||
-        (target != null &&
-            target > currentTotal &&
-            target <= maxCounterInput);
-    final isNameValid = _nameController.text.trim().isNotEmpty;
-
-    return AppDialog(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const AppDialogTitle('Create a group'),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _nameController,
-            decoration: const InputDecoration(labelText: 'Name'),
-            autofocus: true,
-            onChanged: (_) => setState(() {}),
-          ),
-          CheckboxListTile(
-            contentPadding: EdgeInsets.zero,
-            secondary: const Icon(Icons.flag_outlined),
-            title: const Text('Add goal?'),
-            value: _hasTarget,
-            onChanged: (value) {
-              setState(() => _hasTarget = value ?? false);
-            },
-          ),
-          if (_hasTarget)
-            TextField(
-              controller: _targetController,
-              decoration: InputDecoration(
-                labelText: 'Target count',
-                hintText: 'e.g. ${nextTenAbove(currentTotal)}',
-                helperText:
-                    'Must be between ${currentTotal + 1} and $maxCounterInput',
-              ),
-              keyboardType: TextInputType.number,
-              inputFormatters: [
-                FilteringTextInputFormatter.digitsOnly,
-                LengthLimitingTextInputFormatter(
-                  maxCounterInput.toString().length,
-                ),
-              ],
-              onChanged: (_) => setState(() {}),
-            ),
-          const SizedBox(height: 16),
-          Text('Who controls tallies?', style: Theme.of(context).textTheme.titleSmall),
-          const SizedBox(height: 8),
-          SegmentedButton<TallyControl>(
-            showSelectedIcon: false,
-            segments: const [
-              ButtonSegment(
-                value: TallyControl.member,
-                label: Text('Member', maxLines: 1, overflow: TextOverflow.ellipsis),
-                icon: Icon(Icons.people_outline),
-              ),
-              ButtonSegment(
-                value: TallyControl.admin,
-                label: Text('Admin', maxLines: 1, overflow: TextOverflow.ellipsis),
-                icon: Icon(Icons.shield_outlined),
-              ),
-              ButtonSegment(
-                value: TallyControl.free,
-                label: Text('Free', maxLines: 1, overflow: TextOverflow.ellipsis),
-                icon: Icon(Icons.all_inclusive),
-              ),
-            ],
-            selected: {_tallyControl},
-            onSelectionChanged: (selection) =>
-                setState(() => _tallyControl = selection.first),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            switch (_tallyControl) {
-              TallyControl.admin => 'Only you will be able to update members\' tallies.',
-              TallyControl.free => 'Everyone can update everyone\'s tally.',
-              TallyControl.member => 'Each member can update their own tally.',
-            },
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(height: 24),
-          AppDialogActions(
-            secondaryLabel: 'Cancel',
-            onSecondary: () => Navigator.of(context).pop(),
-            primaryLabel: 'Create',
-            onPrimary: (isTargetValid && isNameValid)
-                ? () {
-                    final name = _nameController.text.trim();
-                    if (name.isEmpty) return;
-
-                    Navigator.of(context).pop();
-                    widget.onCreate(
-                      name,
-                      _hasTarget ? target : null,
-                      _tallyControl == TallyControl.admin,
-                      _tallyControl == TallyControl.free,
-                    );
-                  }
-                : null,
-          ),
-        ],
       ),
     );
   }

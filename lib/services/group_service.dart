@@ -114,16 +114,30 @@ class GroupService {
     );
   }
 
+  /// [description]/[adminControlled]/[freeForAll] are left unchanged when
+  /// omitted, so callers that only touch name/target (e.g. the
+  /// goal-reached dialog's "set a new goal") don't need to know or care
+  /// about the group's current description or tally-control mode.
   Future<void> updateGroup(
     String groupId, {
     required String name,
+    String? description,
     required int? target,
+    bool? adminControlled,
+    bool? freeForAll,
   }) async {
-    await _groups.doc(groupId).update({'name': name, 'target': target});
+    await _groups.doc(groupId).update({
+      'name': name,
+      'target': target,
+      'description': ?description,
+      'adminControlled': ?adminControlled,
+      'freeForAll': ?freeForAll,
+    });
   }
 
   Future<Group> createGroup({
     required String name,
+    String description = '',
     int? target,
     bool adminControlled = false,
     bool freeForAll = false,
@@ -134,6 +148,7 @@ class GroupService {
     final group = Group(
       id: docRef.id,
       name: name,
+      description: description,
       code: code,
       target: target,
       createdBy: _uid,

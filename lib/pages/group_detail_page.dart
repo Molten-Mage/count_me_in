@@ -12,8 +12,9 @@ import '../services/group_service.dart';
 import '../widgets/app_dialog.dart';
 import '../widgets/badge_icon.dart';
 import '../widgets/confirm_delete_dialog.dart';
+import '../widgets/editable_tally.dart';
 import '../widgets/goal_reached_dialog.dart';
-import '../widgets/tally_stepper.dart';
+import 'group_form_page.dart';
 
 class GroupDetailPage extends StatefulWidget {
   final Group group;
@@ -26,7 +27,6 @@ class GroupDetailPage extends StatefulWidget {
 
 class _GroupDetailPageState extends State<GroupDetailPage> {
   final _groupService = GroupService();
-  final _stepController = TextEditingController(text: '1');
   // Created once rather than inline in build()'s `stream:` argument - a
   // fresh Stream instance on every rebuild forces StreamBuilder to
   // unsubscribe and resubscribe, briefly dropping back to its loading
@@ -55,16 +55,42 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
   // never exactly matches what was predicted, so the display doesn't get
   // stuck on a stale guess forever.
   final Map<String, int> _tallyOverrides = {};
+  // Row order is captured once from the first snapshot of this visit to
+  // the page, then held fixed - re-sorting live as confirmed tallies cross
+  // each other would otherwise make rows jump around under a member's
+  // finger mid-session. Rank numbers (CircleAvatar below) still update
+  // live against the real standings; only which row a member occupies
+  // stays put until the page is reopened. Null until the first snapshot
+  // arrives.
+  List<String>? _frozenMemberOrder;
 
-  @override
-  void dispose() {
-    _stepController.dispose();
-    super.dispose();
-  }
-
-  int get _step {
-    final step = int.tryParse(_stepController.text);
-    return (step == null || step <= 0) ? 1 : step;
+  /// Orders [rawMembers] by [_frozenMemberOrder], capturing that order
+  /// (by real tally, highest first) on the first call this visit. A
+  /// member who joins mid-visit is appended in whatever order the stream
+  /// delivered them, and starts tracking their own frozen position from
+  /// then on; a member who leaves just drops out of the rendered list
+  /// without disturbing anyone else's position.
+  List<GroupMember> _orderedMembers(List<GroupMember> rawMembers) {
+    final byUid = {for (final m in rawMembers) m.uid: m};
+    var frozen = _frozenMemberOrder;
+    if (frozen == null) {
+      final initial = List<GroupMember>.of(rawMembers)
+        ..sort((a, b) => b.tally.compareTo(a.tally));
+      frozen = initial.map((m) => m.uid).toList();
+    }
+    final ordered = [
+      for (final uid in frozen)
+        if (byUid[uid] != null) byUid[uid]!,
+    ];
+    final newcomers = rawMembers
+        .where((m) => !frozen!.contains(m.uid))
+        .toList();
+    if (newcomers.isNotEmpty) {
+      frozen = [...frozen, ...newcomers.map((m) => m.uid)];
+      ordered.addAll(newcomers);
+    }
+    _frozenMemberOrder = frozen;
+    return ordered;
   }
 
   int _effectiveTally(GroupMember member) {
@@ -129,6 +155,24 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
       if (!mounted) return;
       setState(() => _tallyOverrides.remove(member.uid));
       _showSaveError();
+    }
+  }
+
+  /// Directly editing a member's tally field is expressed as a delta
+  /// against their current (optimistic-aware) tally, then routed through
+  /// [_incrementMember]/[_decrementMember] - reuses their existing
+  /// optimistic-update, badge-award, and rollback logic rather than
+  /// duplicating it for a third mutation path.
+  Future<void> _setMemberTally(
+    Group group,
+    GroupMember member,
+    int newValue,
+  ) async {
+    final delta = newValue - _effectiveTally(member);
+    if (delta > 0) {
+      await _incrementMember(group, member, delta);
+    } else if (delta < 0) {
+      await _decrementMember(group, member, -delta);
     }
   }
 
@@ -233,15 +277,15 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
     );
   }
 
-  Future<void> _showEditGroupDialog(Group group, int currentTotal) async {
-    await showDialog<void>(
-      context: context,
-      builder: (context) => _EditGroupDialog(
-        group: group,
-        currentTotal: currentTotal,
-        onSave: (name, target) =>
-            _groupService.updateGroup(group.id, name: name, target: target),
-        onShowMembers: () => _showGroupMembersDialog(group),
+  Future<void> _openEditGroupPage(Group group, int currentTotal) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => GroupFormPage(
+          groupService: _groupService,
+          existingGroup: group,
+          currentTotal: currentTotal,
+          onShowMembers: () => _showGroupMembersDialog(group),
+        ),
       ),
     );
   }
@@ -388,7 +432,7 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
                   if (group.createdBy == myUid)
                     PopupMenuItem<VoidCallback>(
                       value: () =>
-                          _showEditGroupDialog(group, _currentTotal),
+                          _openEditGroupPage(group, _currentTotal),
                       child: const ListTile(
                         contentPadding: EdgeInsets.zero,
                         leading: Icon(Icons.edit_outlined),
@@ -457,14 +501,16 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
                   );
                 }
                 final rawMembers = snapshot.data ?? const <GroupMember>[];
-                // Sorted by the real (server-confirmed) tally, not the
-                // optimistic one - an optimistic bump can otherwise reorder
-                // rows the moment it's applied and again when it's cleared,
-                // shifting whatever the user's mid-tap on out from under
-                // their finger. The displayed number still uses
-                // _effectiveTally below; only row order stays stable.
-                final members = List<GroupMember>.of(rawMembers)
+                final members = _orderedMembers(rawMembers);
+                // Independent of row order above: rank numbers still track
+                // the real (server-confirmed) standings live, so a row that
+                // stays put can still show a rank that's moved.
+                final rankedByTally = List<GroupMember>.of(rawMembers)
                   ..sort((a, b) => b.tally.compareTo(a.tally));
+                final rankByUid = {
+                  for (var i = 0; i < rankedByTally.length; i++)
+                    rankedByTally[i].uid: i + 1,
+                };
                 // `total` (server truth, drives the goal-reached celebration
                 // below) vs `displayTotal` (includes optimistic overrides,
                 // what's actually shown) - kept separate so a celebration
@@ -506,6 +552,14 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
                         value: (displayTotal / target).clamp(0, 1).toDouble(),
                       ),
                     ],
+                    if (group.description.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      Text(
+                        group.description,
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                    ],
                     const SizedBox(height: 16),
                     for (var i = 0; i < members.length; i++)
                       Card(
@@ -514,55 +568,45 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
                             horizontal: 16,
                             vertical: 8,
                           ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                          child: Row(
                             children: [
-                              Row(
-                                children: [
-                                  CircleAvatar(child: Text('${i + 1}')),
-                                  const SizedBox(width: 16),
-                                  Expanded(
-                                    child: Text(
-                                      members[i].displayName,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    '${_effectiveTally(members[i])}',
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .headlineSmall
-                                        ?.copyWith(fontWeight: FontWeight.w600),
-                                  ),
-                                ],
+                              CircleAvatar(
+                                child: Text('${rankByUid[members[i].uid]}'),
                               ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Text(
+                                  members[i].displayName,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
                               if (switch (group.tallyControl) {
                                 TallyControl.admin => group.createdBy == myUid,
                                 TallyControl.free => true,
                                 TallyControl.member => members[i].uid == myUid,
-                              }) ...[
-                                const SizedBox(height: 4),
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.end,
-                                  children: [
-                                    TallyStepper(
-                                      stepController: _stepController,
-                                      onDecrement: () => _decrementMember(
-                                        group,
-                                        members[i],
-                                        _step,
-                                      ),
-                                      onIncrement: () => _incrementMember(
-                                        group,
-                                        members[i],
-                                        _step,
-                                      ),
-                                    ),
-                                  ],
+                              })
+                                EditableTally(
+                                  value: _effectiveTally(members[i]),
+                                  onChanged: (value) => _setMemberTally(
+                                    group,
+                                    members[i],
+                                    value,
+                                  ),
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .headlineSmall
+                                      ?.copyWith(fontWeight: FontWeight.w600),
+                                )
+                              else
+                                Text(
+                                  '${_effectiveTally(members[i])}',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .headlineSmall
+                                      ?.copyWith(fontWeight: FontWeight.w600),
                                 ),
-                              ],
                             ],
                           ),
                         ),
@@ -682,130 +726,6 @@ class _GroupBadgeChip extends StatelessWidget {
             formatBadgeDate(badge.reachedAt),
             style: Theme.of(context).textTheme.bodySmall,
             textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _EditGroupDialog extends StatefulWidget {
-  final Group group;
-  final int currentTotal;
-  final Future<void> Function(String name, int? target) onSave;
-  final VoidCallback onShowMembers;
-
-  const _EditGroupDialog({
-    required this.group,
-    required this.currentTotal,
-    required this.onSave,
-    required this.onShowMembers,
-  });
-
-  @override
-  State<_EditGroupDialog> createState() => _EditGroupDialogState();
-}
-
-class _EditGroupDialogState extends State<_EditGroupDialog> {
-  late final _nameController = TextEditingController(text: widget.group.name);
-  late final _targetController = TextEditingController(
-    text: widget.group.target?.toString() ?? '',
-  );
-  late bool _hasTarget = widget.group.target != null;
-  bool _isSubmitting = false;
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _targetController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _submit() async {
-    if (_isSubmitting) return;
-
-    final name = _nameController.text.trim();
-    if (name.isEmpty) return;
-
-    setState(() => _isSubmitting = true);
-
-    final target = int.tryParse(_targetController.text);
-    await widget.onSave(name, _hasTarget ? target : null);
-    if (mounted) Navigator.of(context).pop();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final target = int.tryParse(_targetController.text);
-    final isTargetValid =
-        !_hasTarget ||
-        (target != null &&
-            target > widget.currentTotal &&
-            target <= maxCounterInput);
-    final isNameValid = _nameController.text.trim().isNotEmpty;
-
-    return AppDialog(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const AppDialogTitle('Edit group'),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _nameController,
-            decoration: const InputDecoration(labelText: 'Name'),
-            autofocus: true,
-            onChanged: (_) => setState(() {}),
-          ),
-          CheckboxListTile(
-            contentPadding: EdgeInsets.zero,
-            secondary: const Icon(Icons.flag_outlined),
-            title: const Text('Add goal?'),
-            value: _hasTarget,
-            onChanged: (value) {
-              setState(() => _hasTarget = value ?? false);
-            },
-          ),
-          if (_hasTarget)
-            TextField(
-              controller: _targetController,
-              decoration: InputDecoration(
-                labelText: 'Target count',
-                hintText: 'e.g. ${nextTenAbove(widget.currentTotal)}',
-                helperText:
-                    'Must be between ${widget.currentTotal + 1} and $maxCounterInput',
-              ),
-              keyboardType: TextInputType.number,
-              inputFormatters: [
-                FilteringTextInputFormatter.digitsOnly,
-                LengthLimitingTextInputFormatter(
-                  maxCounterInput.toString().length,
-                ),
-              ],
-              onChanged: (_) => setState(() {}),
-            ),
-          const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: () {
-                Navigator.of(context).pop();
-                widget.onShowMembers();
-              },
-              icon: const Icon(Icons.group_outlined),
-              label: const Text('Group Members'),
-            ),
-          ),
-          const SizedBox(height: 24),
-          AppDialogActions(
-            secondaryLabel: 'Cancel',
-            onSecondary: _isSubmitting
-                ? null
-                : () => Navigator.of(context).pop(),
-            primaryLabel: 'Save',
-            onPrimary: (isTargetValid && isNameValid && !_isSubmitting)
-                ? _submit
-                : null,
           ),
         ],
       ),

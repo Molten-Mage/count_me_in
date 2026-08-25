@@ -31,6 +31,7 @@ class GroupBadge {
 class Group {
   final String id;
   final String name;
+  final String description;
   final String code;
   final int? target;
   final String createdBy;
@@ -43,6 +44,7 @@ class Group {
   const Group({
     required this.id,
     required this.name,
+    this.description = '',
     required this.code,
     this.target,
     required this.createdBy,
@@ -60,6 +62,7 @@ class Group {
   factory Group.fromFirestore(String id, Map<String, dynamic> data) => Group(
     id: id,
     name: data['name'] as String,
+    description: data['description'] as String? ?? '',
     code: data['code'] as String,
     target: data['target'] as int?,
     createdBy: data['createdBy'] as String,
@@ -76,6 +79,7 @@ class Group {
 
   Map<String, dynamic> toFirestore() => {
     'name': name,
+    'description': description,
     'code': code,
     'target': target,
     'createdBy': createdBy,
