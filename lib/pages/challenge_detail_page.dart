@@ -12,8 +12,8 @@ import '../widgets/app_dialog.dart';
 import '../widgets/challenge_completed_dialog.dart';
 import '../widgets/challenge_emblem.dart';
 import '../widgets/confirm_delete_dialog.dart';
+import '../widgets/editable_tally.dart';
 import '../widgets/error_dialog.dart';
-import '../widgets/tally_stepper.dart';
 import 'challenge_form_page.dart';
 import 'challenge_participants_page.dart';
 
@@ -66,7 +66,6 @@ class ChallengeDetailPage extends StatefulWidget {
 
 class _ChallengeDetailPageState extends State<ChallengeDetailPage> {
   final _challengeService = ChallengeService();
-  final Map<String, TextEditingController> _stepControllers = {};
   // Created once rather than inline in build()'s `stream:` argument - a
   // fresh Stream instance on every rebuild forces StreamBuilder to
   // unsubscribe and resubscribe, briefly dropping back to its loading
@@ -101,14 +100,6 @@ class _ChallengeDetailPageState extends State<ChallengeDetailPage> {
   // completed-challenge celebration never fires ahead of the server
   // actually confirming it.
   final Map<String, int> _tallyOverrides = {};
-
-  @override
-  void dispose() {
-    for (final controller in _stepControllers.values) {
-      controller.dispose();
-    }
-    super.dispose();
-  }
 
   int _effectiveTally(ChallengeParticipant? me, String objectiveId) {
     final override = _tallyOverrides[objectiveId];
@@ -237,7 +228,7 @@ class _ChallengeDetailPageState extends State<ChallengeDetailPage> {
       WidgetsBinding.instance.addPostFrameCallback((_) async {
         if (!mounted) return;
         // The increment that just completed the challenge may have left a
-        // step field focused; popping this dialog can otherwise restore
+        // tally field focused; popping this dialog can otherwise restore
         // that focus and reopen its keyboard.
         FocusScope.of(context).unfocus();
         await showChallengeCompletedDialog(context, challenge: challenge);
@@ -246,16 +237,23 @@ class _ChallengeDetailPageState extends State<ChallengeDetailPage> {
     }
   }
 
-  TextEditingController _stepControllerFor(String objectiveId) {
-    return _stepControllers.putIfAbsent(
-      objectiveId,
-      () => TextEditingController(text: '1'),
-    );
-  }
-
-  int _stepFor(String objectiveId) {
-    final step = int.tryParse(_stepControllerFor(objectiveId).text);
-    return (step == null || step <= 0) ? 1 : step;
+  /// Directly editing an objective's tally field is expressed as a delta
+  /// against its current (optimistic-aware) tally, then routed through
+  /// [_incrementObjective]/[_decrementObjective] - reuses their existing
+  /// optimistic-update, completion-tracking, and rollback logic rather than
+  /// duplicating it for a third mutation path.
+  Future<void> _setObjectiveTally(
+    Challenge challenge,
+    ChallengeParticipant? me,
+    ChallengeObjective objective,
+    int newValue,
+  ) async {
+    final delta = newValue - _effectiveTally(me, objective.id);
+    if (delta > 0) {
+      await _incrementObjective(challenge, me, objective, delta);
+    } else if (delta < 0) {
+      await _decrementObjective(challenge, me, objective, -delta);
+    }
   }
 
   void _openInfo(Challenge challenge, {String? objectiveId}) {
@@ -596,18 +594,11 @@ class _ChallengeDetailPageState extends State<ChallengeDetailPage> {
                         objective: objective,
                         myTally: _effectiveTally(me, objective.id),
                         canEdit: !challenge.hasEnded && me != null,
-                        stepController: _stepControllerFor(objective.id),
-                        onDecrement: () => _decrementObjective(
+                        onChanged: (value) => _setObjectiveTally(
                           challenge,
                           me,
                           objective,
-                          _stepFor(objective.id),
-                        ),
-                        onIncrement: () => _incrementObjective(
-                          challenge,
-                          me,
-                          objective,
-                          _stepFor(objective.id),
+                          value,
                         ),
                         onTap: () =>
                             _openInfo(challenge, objectiveId: objective.id),
@@ -716,9 +707,7 @@ class _ObjectiveCard extends StatelessWidget {
   // optimistic override still in flight for this objective.
   final int myTally;
   final bool canEdit;
-  final TextEditingController stepController;
-  final VoidCallback onDecrement;
-  final VoidCallback onIncrement;
+  final ValueChanged<int> onChanged;
   final VoidCallback onTap;
   final VoidCallback onReset;
 
@@ -726,9 +715,7 @@ class _ObjectiveCard extends StatelessWidget {
     required this.objective,
     required this.myTally,
     required this.canEdit,
-    required this.stepController,
-    required this.onDecrement,
-    required this.onIncrement,
+    required this.onChanged,
     required this.onTap,
     required this.onReset,
   });
@@ -737,6 +724,9 @@ class _ObjectiveCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final target = objective.target;
     final done = target != null && myTally >= target;
+    final subtleStyle = Theme.of(context).textTheme.bodyMedium?.copyWith(
+      color: Theme.of(context).colorScheme.onSurfaceVariant,
+    );
 
     return Card(
       child: InkWell(
@@ -756,15 +746,17 @@ class _ObjectiveCard extends StatelessWidget {
                     const SizedBox(height: 2),
                     Row(
                       children: [
-                        Text(
-                          target != null ? '$myTally / $target' : '$myTally',
-                          style: Theme.of(context).textTheme.bodyMedium
-                              ?.copyWith(
-                                color: Theme.of(
-                                  context,
-                                ).colorScheme.onSurfaceVariant,
-                              ),
-                        ),
+                        if (canEdit)
+                          EditableTally(
+                            value: myTally,
+                            onChanged: onChanged,
+                            style: subtleStyle,
+                            iconSize: 20,
+                          )
+                        else
+                          Text('$myTally', style: subtleStyle),
+                        if (target != null)
+                          Text(' / $target', style: subtleStyle),
                         if (done) ...[
                           const SizedBox(width: 6),
                           Icon(
@@ -781,21 +773,13 @@ class _ObjectiveCard extends StatelessWidget {
               // Always present (just disabled at zero) rather than
               // conditionally shown/hidden - an optimistic tally update and
               // the stream value briefly disagreeing about the zero
-              // boundary would otherwise make this icon flicker in and out,
-              // shifting the stepper beside it.
+              // boundary would otherwise make this icon flicker in and out.
               if (canEdit)
                 IconButton(
                   icon: const Icon(Icons.restart_alt),
                   iconSize: 20,
                   tooltip: 'Reset',
                   onPressed: myTally > 0 ? onReset : null,
-                ),
-              if (canEdit)
-                TallyStepper(
-                  stepController: stepController,
-                  iconSize: 20,
-                  onDecrement: onDecrement,
-                  onIncrement: onIncrement,
                 ),
             ],
           ),

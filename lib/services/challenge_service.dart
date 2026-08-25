@@ -242,13 +242,19 @@ class ChallengeService {
     return challenge;
   }
 
-  /// Updates objective targets (names and ids stay fixed). Firestore rules
-  /// restrict this to the challenge's creator. A target edit can push any
-  /// participant into or out of "complete" without their tallies changing
-  /// at all, so this also recomputes `completedAt` for every participant
-  /// against the new targets - unlike a tally change, which only ever
-  /// needs to re-check the one person whose tally just moved.
-  Future<void> updateObjectiveTargets(
+  /// Replaces the challenge's objective list wholesale - covers renaming,
+  /// retargeting, adding, and removing objectives in one write. Firestore
+  /// rules restrict this to the challenge's creator and cap the count at
+  /// [maxChallengeObjectives]. Callers must assign ids from the fixed
+  /// `obj_0`..`obj_9` pool (see firestore.rules' `challengeObjectiveIds`) -
+  /// an id outside that set would make any future tally write for it get
+  /// rejected. An edit here can push any participant into or out of
+  /// "complete" without their tallies changing at all (a removed objective
+  /// can uncomplete someone; a lowered target can complete them), so this
+  /// also recomputes `completedAt` for every participant against the new
+  /// objectives - unlike a tally change, which only ever needs to re-check
+  /// the one person whose tally just moved.
+  Future<void> updateObjectives(
     String challengeId,
     List<ChallengeObjective> objectives,
   ) async {
