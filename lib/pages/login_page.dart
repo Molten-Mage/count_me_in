@@ -11,6 +11,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
 import '../services/analytics_service.dart';
+import '../widgets/choose_username_dialog.dart';
 import '../widgets/tally_icon.dart';
 import 'privacy_policy_page.dart';
 
@@ -166,8 +167,13 @@ class _LoginPageState extends State<LoginPage> {
       final account = await GoogleSignIn.instance.authenticate();
       final idToken = account.authentication.idToken;
       final credential = GoogleAuthProvider.credential(idToken: idToken);
-      await FirebaseAuth.instance.signInWithCredential(credential);
+      final userCredential = await FirebaseAuth.instance.signInWithCredential(
+        credential,
+      );
       await analyticsService.logLogin('google.com');
+      if (userCredential.additionalUserInfo?.isNewUser == true && mounted) {
+        await showChooseUsernameDialog(context);
+      }
     } on GoogleSignInException catch (e) {
       if (e.code != GoogleSignInExceptionCode.canceled) {
         setState(() => _errorMessage = 'Google sign-in failed. Try again.');
@@ -227,9 +233,13 @@ class _LoginPageState extends State<LoginPage> {
         ].where((part) => part != null && part.isNotEmpty).join(' ');
         if (name.isNotEmpty) {
           await userCredential.user?.updateDisplayName(name);
+          await userCredential.user?.reload();
         }
       }
       await analyticsService.logLogin('apple.com');
+      if (userCredential.additionalUserInfo?.isNewUser == true && mounted) {
+        await showChooseUsernameDialog(context);
+      }
     } on SignInWithAppleAuthorizationException catch (e) {
       if (e.code != AuthorizationErrorCode.canceled) {
         setState(() => _errorMessage = 'Apple sign-in failed. Try again.');

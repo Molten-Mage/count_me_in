@@ -15,15 +15,30 @@ import '../services/theme_controller.dart';
 import '../widgets/change_password_dialog.dart';
 import '../widgets/confirm_delete_dialog.dart';
 import '../widgets/delete_account_dialog.dart';
+import '../widgets/edit_name_dialog.dart';
 import '../widgets/premium_upsell_dialog.dart';
 import 'notification_settings_page.dart';
 import 'privacy_policy_page.dart';
 
-class SettingsPage extends StatelessWidget {
+class SettingsPage extends StatefulWidget {
   final bool isGuest;
   final VoidCallback? onSignIn;
 
   const SettingsPage({super.key, this.isGuest = false, this.onSignIn});
+
+  @override
+  State<SettingsPage> createState() => _SettingsPageState();
+}
+
+class _SettingsPageState extends State<SettingsPage> {
+  // Created once rather than inline in build()'s `stream:` argument - a
+  // fresh Stream instance on every rebuild forces StreamBuilder to
+  // unsubscribe and resubscribe, briefly dropping back to its initial state
+  // before the new subscription's first snapshot arrives. That
+  // subscribe/wait/reconnect cycle was the actual "blink" opening the edit
+  // name dialog seemed to cause - not anything about the dialog itself.
+  late final Stream<User?> _userChangesStream =
+      FirebaseAuth.instance.userChanges();
 
   void _openPrivacyPolicy(BuildContext context) {
     Navigator.of(context).push(
@@ -172,8 +187,17 @@ class SettingsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (isGuest) {
+    if (widget.isGuest) {
       return Scaffold(
+        // This page has no text field of its own - every one lives inside a
+        // dialog pushed on top (edit name, change password, etc.), several
+        // of which autofocus and bring up the keyboard immediately. Without
+        // this, the default resize-to-avoid-keyboard behavior kicks in for
+        // *this* page's Scaffold too (MediaQuery's viewInsets are inherited
+        // globally, not scoped to whichever route actually owns the
+        // focused field), visibly shifting/jittering the whole settings
+        // list the instant the dialog's keyboard slides up.
+        resizeToAvoidBottomInset: false,
         appBar: AppBar(title: const Text('Settings')),
         body: Column(
           children: [
@@ -213,7 +237,7 @@ class SettingsPage extends StatelessWidget {
                       ),
                       const SizedBox(height: 24),
                       FilledButton(
-                        onPressed: onSignIn,
+                        onPressed: widget.onSignIn,
                         style: FilledButton.styleFrom(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 24,
@@ -265,28 +289,57 @@ class SettingsPage extends StatelessWidget {
         false;
 
     return Scaffold(
+      // See the guest-branch Scaffold above for why this is off - same
+      // reasoning applies here, and this is the branch the "Edit name"
+      // dialog (which autofocuses) actually opens from.
+      resizeToAvoidBottomInset: false,
       appBar: AppBar(title: const Text('Settings')),
       body: ListView(
         children: [
           const SizedBox(height: 8),
-          CircleAvatar(
-            radius: 32,
-            child: Text(
-              (user?.displayName?.isNotEmpty == true
-                      ? user!.displayName!
-                      : (user?.email ?? '?'))[0]
-                  .toUpperCase(),
-              style: const TextStyle(fontSize: 28),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Center(
-            child: Text(
-              user?.displayName?.isNotEmpty == true
-                  ? user!.displayName!
-                  : 'No name set',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
+          // userChanges() (unlike authStateChanges()) also fires on profile
+          // edits like updateDisplayName, so the avatar/name refresh right
+          // after the edit-name dialog saves without any manual setState
+          // plumbing here.
+          StreamBuilder<User?>(
+            stream: _userChangesStream,
+            initialData: user,
+            builder: (context, snapshot) {
+              final current = snapshot.data ?? user;
+              final name = current?.displayName?.isNotEmpty == true
+                  ? current!.displayName!
+                  : null;
+              return Center(
+                child: Column(
+                  children: [
+                    CircleAvatar(
+                      radius: 32,
+                      child: Text(
+                        (name ?? current?.email ?? '?')[0].toUpperCase(),
+                        style: const TextStyle(fontSize: 28),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          name ?? 'No name set',
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                        const SizedBox(width: 4),
+                        IconButton(
+                          icon: const Icon(Icons.edit_outlined, size: 18),
+                          tooltip: 'Edit name',
+                          visualDensity: VisualDensity.compact,
+                          onPressed: () => showEditNameDialog(context),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              );
+            },
           ),
           const SizedBox(height: 16),
           _buildPremiumSection(context),
