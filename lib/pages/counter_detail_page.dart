@@ -7,8 +7,8 @@ import '../widgets/app_dialog.dart';
 import '../widgets/badge_icon.dart';
 import '../widgets/confirm_delete_dialog.dart';
 import '../widgets/counter_form_dialog.dart';
+import '../widgets/editable_tally.dart';
 import '../widgets/goal_reached_dialog.dart';
-import '../widgets/tally_stepper.dart';
 import 'counter_notes_page.dart';
 
 class CounterDetailPage extends StatefulWidget {
@@ -37,21 +37,8 @@ class CounterDetailPage extends StatefulWidget {
 
 class _CounterDetailPageState extends State<CounterDetailPage> {
   late Counter _counter = widget.counter;
-  final _stepController = TextEditingController(text: '1');
 
-  @override
-  void dispose() {
-    _stepController.dispose();
-    super.dispose();
-  }
-
-  int get _step {
-    final step = int.tryParse(_stepController.text);
-    return (step == null || step <= 0) ? 1 : step;
-  }
-
-  void _increment() {
-    final amount = _step;
+  void _increment(int amount) {
     widget.onIncrement(amount);
     final updated = _counter.incremented(amount);
     final newlyEarnedBadge = updated.badges.length > _counter.badges.length
@@ -81,13 +68,21 @@ class _CounterDetailPageState extends State<CounterDetailPage> {
     }
   }
 
-  void _decrement() {
-    final amount = _step;
+  void _decrement(int amount) {
     widget.onDecrement(amount);
     setState(
       () =>
           _counter = _counter.copyWith(count: max(_counter.count - amount, 0)),
     );
+  }
+
+  void _setTally(int newValue) {
+    final delta = newValue - _counter.count;
+    if (delta > 0) {
+      _increment(delta);
+    } else if (delta < 0) {
+      _decrement(-delta);
+    }
   }
 
   Future<void> _confirmReset() async {
@@ -232,25 +227,25 @@ class _CounterDetailPageState extends State<CounterDetailPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Text(
-                        progress == null
-                            ? '${_counter.count}'
-                            : '${_counter.count} / ${_counter.target}',
-                        textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.headlineMedium,
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          EditableTally(
+                            value: _counter.count,
+                            onChanged: _setTally,
+                            style: Theme.of(context).textTheme.headlineMedium,
+                          ),
+                          if (progress != null)
+                            Text(
+                              ' / ${_counter.target}',
+                              style: Theme.of(context).textTheme.headlineMedium,
+                            ),
+                        ],
                       ),
                       if (progress != null) ...[
                         const SizedBox(height: 12),
                         LinearProgressIndicator(value: progress),
                       ],
-                      const SizedBox(height: 20),
-                      Center(
-                        child: TallyStepper(
-                          stepController: _stepController,
-                          onDecrement: _decrement,
-                          onIncrement: _increment,
-                        ),
-                      ),
                     ],
                   ),
                 ),

@@ -9,9 +9,9 @@ import '../services/counter_storage.dart';
 import '../services/premium_service.dart';
 import '../widgets/confirm_delete_dialog.dart';
 import '../widgets/counter_form_dialog.dart';
+import '../widgets/editable_tally.dart';
 import '../widgets/goal_reached_dialog.dart';
 import '../widgets/paywall_dialog.dart';
-import '../widgets/tally_stepper.dart';
 import 'counter_detail_page.dart';
 
 class HomePage extends StatefulWidget {
@@ -27,8 +27,7 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   late final CounterStorage _storage = widget.storage;
   final _premiumService = PremiumService();
-  final Map<String, TextEditingController> _stepControllers = {};
-  final Map<String, FocusNode> _stepFocusNodes = {};
+  final Map<String, FocusNode> _tallyFocusNodes = {};
   List<Counter> _counters = [];
   bool _loading = true;
   bool _editMode = false;
@@ -49,39 +48,24 @@ class _HomePageState extends State<HomePage> {
 
   @override
   void dispose() {
-    for (final controller in _stepControllers.values) {
-      controller.dispose();
-    }
-    for (final node in _stepFocusNodes.values) {
+    for (final node in _tallyFocusNodes.values) {
       node.dispose();
     }
     super.dispose();
   }
 
-  FocusNode _stepFocusNodeFor(Counter counter) {
-    return _stepFocusNodes.putIfAbsent(counter.id, () => FocusNode());
+  FocusNode _tallyFocusNodeFor(Counter counter) {
+    return _tallyFocusNodes.putIfAbsent(counter.id, () => FocusNode());
   }
 
   // Belt-and-braces keyboard dismissal for navigating away from a counter
-  // whose step field is focused: unfocusing alone doesn't reliably stop the
+  // whose tally field is focused: unfocusing alone doesn't reliably stop the
   // platform from restoring the software keyboard when we later pop back
   // to this route, so we also explicitly ask the platform to hide it.
-  void _dismissStepKeyboard(Counter counter) {
-    _stepFocusNodeFor(counter).unfocus();
+  void _dismissTallyKeyboard(Counter counter) {
+    _tallyFocusNodeFor(counter).unfocus();
     FocusManager.instance.primaryFocus?.unfocus();
     SystemChannels.textInput.invokeMethod<void>('TextInput.hide');
-  }
-
-  TextEditingController _stepControllerFor(Counter counter) {
-    return _stepControllers.putIfAbsent(
-      counter.id,
-      () => TextEditingController(text: '1'),
-    );
-  }
-
-  int _stepFor(Counter counter) {
-    final step = int.tryParse(_stepControllerFor(counter).text);
-    return (step == null || step <= 0) ? 1 : step;
   }
 
   Future<void> _loadCounters() async {
@@ -216,6 +200,23 @@ class _HomePageState extends State<HomePage> {
     await _persist(previous);
   }
 
+  /// Directly editing the tally field is expressed as a delta against the
+  /// counter's current count, then routed through [_increment]/[_decrement]
+  /// - reuses their existing badge-celebration and persist/rollback logic
+  /// rather than duplicating it for a third mutation path.
+  Future<void> _setTally(Counter counter, int newValue) async {
+    final current = _counters.firstWhere(
+      (c) => c.id == counter.id,
+      orElse: () => counter,
+    );
+    final delta = newValue - current.count;
+    if (delta > 0) {
+      await _increment(counter, delta);
+    } else if (delta < 0) {
+      await _decrement(counter, -delta);
+    }
+  }
+
   Future<void> _deleteCounter(Counter counter) async {
     final previous = _counters;
     setState(() {
@@ -224,8 +225,7 @@ class _HomePageState extends State<HomePage> {
           if (c.id != counter.id) c,
       ];
     });
-    _stepControllers.remove(counter.id)?.dispose();
-    _stepFocusNodes.remove(counter.id)?.dispose();
+    _tallyFocusNodes.remove(counter.id)?.dispose();
     final saved = await _persist(previous);
     if (saved) await analyticsService.logCounterDeleted();
   }
@@ -356,7 +356,7 @@ class _HomePageState extends State<HomePage> {
                   return Card(
                     child: InkWell(
                       onTap: () async {
-                        _dismissStepKeyboard(counter);
+                        _dismissTallyKeyboard(counter);
                         await Navigator.of(context).push(
                           MaterialPageRoute(
                             builder: (context) => CounterDetailPage(
@@ -383,9 +383,9 @@ class _HomePageState extends State<HomePage> {
                         // was focused before navigating away. That
                         // restoration can happen on the frame after this
                         // one, so dismiss both now and after that frame.
-                        if (context.mounted) _dismissStepKeyboard(counter);
+                        if (context.mounted) _dismissTallyKeyboard(counter);
                         WidgetsBinding.instance.addPostFrameCallback((_) {
-                          if (mounted) _dismissStepKeyboard(counter);
+                          if (mounted) _dismissTallyKeyboard(counter);
                         });
                       },
                       child: Padding(
@@ -404,12 +404,6 @@ class _HomePageState extends State<HomePage> {
                                     ).textTheme.titleMedium,
                                   ),
                                 ),
-                                Text(
-                                  progress == null
-                                      ? '${counter.count}'
-                                      : '${counter.count} / ${counter.target}',
-                                ),
-                                const SizedBox(width: 4),
                                 Icon(
                                   Icons.chevron_right,
                                   color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -419,17 +413,21 @@ class _HomePageState extends State<HomePage> {
                             const SizedBox(height: 8),
                             if (progress != null)
                               LinearProgressIndicator(value: progress),
+                            const SizedBox(height: 8),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.end,
                               children: [
-                                TallyStepper(
-                                  stepController: _stepControllerFor(counter),
-                                  focusNode: _stepFocusNodeFor(counter),
-                                  onDecrement: () =>
-                                      _decrement(counter, _stepFor(counter)),
-                                  onIncrement: () =>
-                                      _increment(counter, _stepFor(counter)),
+                                EditableTally(
+                                  value: counter.count,
+                                  focusNode: _tallyFocusNodeFor(counter),
+                                  onChanged: (value) =>
+                                      _setTally(counter, value),
                                 ),
+                                if (progress != null)
+                                  Padding(
+                                    padding: const EdgeInsets.only(left: 6),
+                                    child: Text(' / ${counter.target}'),
+                                  ),
                               ],
                             ),
                           ],

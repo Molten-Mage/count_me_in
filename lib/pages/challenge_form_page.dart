@@ -7,7 +7,11 @@ import '../widgets/app_dialog.dart';
 import '../widgets/error_dialog.dart';
 
 class _ObjectiveInput {
-  final String? id; // null in create mode; fixed in edit mode
+  // Null for an objective not yet saved to Firestore (a brand new one, in
+  // either create mode or added while editing an existing challenge) -
+  // _submit assigns it a real id from the unused obj_0..obj_9 pool at save
+  // time. Non-null for one that already exists server-side.
+  final String? id;
   final TextEditingController nameController;
   final TextEditingController targetController;
 
@@ -21,12 +25,12 @@ class _ObjectiveInput {
   }
 }
 
-/// Create-a-challenge and edit-objective-targets share this one form.
+/// Create-a-challenge and edit-a-challenge share this one form.
 /// [existingChallenge] null = create mode (everything editable). Non-null =
 /// edit mode: name/description/visibility/deadline are shown read-only
 /// (matches what firestore.rules actually lets the creator change - only
-/// `objectives`), objective names/count are fixed, only targets are
-/// editable.
+/// `objectives`), but objectives themselves - names, targets, and the set
+/// of objectives (add/remove) - are fully editable in both modes.
 class ChallengeFormPage extends StatefulWidget {
   final ChallengeService challengeService;
   final Challenge? existingChallenge;
@@ -102,14 +106,35 @@ class _ChallengeFormPageState extends State<ChallengeFormPage> {
 
   bool get _isValid {
     if (_isEditing) {
-      // Targets are optional (an open-ended tally is fine), so there's
-      // nothing to validate beyond having at least one objective, which is
-      // already guaranteed by construction.
-      return true;
+      // Targets are optional (an open-ended tally is fine); count bounds
+      // are already enforced by _addObjective/_removeObjective. Just need
+      // every objective to have a name.
+      return _objectives.every((o) => o.nameController.text.trim().isNotEmpty);
     }
     if (_nameController.text.trim().isEmpty) return false;
     if (_hasDeadline && _deadline == null) return false;
     return _objectives.every((o) => o.nameController.text.trim().isNotEmpty);
+  }
+
+  /// Assigns a real id to any newly-added objective (id == null) from
+  /// whichever `obj_0`..`obj_9` slots the challenge's existing objectives
+  /// aren't already using - see the id-pool note on
+  /// [ChallengeService.updateObjectives].
+  List<ChallengeObjective> _resolveEditedObjectives() {
+    final usedIds = _objectives.map((o) => o.id).whereType<String>().toSet();
+    final freeIds = [
+      for (var i = 0; i < maxChallengeObjectives; i++)
+        if (!usedIds.contains('obj_$i')) 'obj_$i',
+    ];
+    var nextFreeId = 0;
+    return [
+      for (final objective in _objectives)
+        ChallengeObjective(
+          id: objective.id ?? freeIds[nextFreeId++],
+          name: objective.nameController.text.trim(),
+          target: int.tryParse(objective.targetController.text),
+        ),
+    ];
   }
 
   Future<void> _submit() async {
@@ -118,16 +143,9 @@ class _ChallengeFormPageState extends State<ChallengeFormPage> {
 
     try {
       if (_isEditing) {
-        await widget.challengeService.updateObjectiveTargets(
+        await widget.challengeService.updateObjectives(
           widget.existingChallenge!.id,
-          [
-            for (final objective in _objectives)
-              ChallengeObjective(
-                id: objective.id!,
-                name: objective.nameController.text,
-                target: int.tryParse(objective.targetController.text),
-              ),
-          ],
+          _resolveEditedObjectives(),
         );
       } else {
         await widget.challengeService.createChallenge(
@@ -183,13 +201,12 @@ class _ChallengeFormPageState extends State<ChallengeFormPage> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text('Objectives', style: Theme.of(context).textTheme.titleSmall),
-                if (!_isEditing)
-                  Text(
-                    '${_objectives.length} / $maxChallengeObjectives',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
+                Text(
+                  '${_objectives.length} / $maxChallengeObjectives',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
+                ),
               ],
             ),
             const SizedBox(height: 8),
@@ -199,29 +216,17 @@ class _ChallengeFormPageState extends State<ChallengeFormPage> {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (_isEditing)
-                      Expanded(
-                        flex: 3,
-                        child: Padding(
-                          padding: const EdgeInsets.only(top: 16),
-                          child: Text(
-                            _objectives[i].nameController.text,
-                            style: Theme.of(context).textTheme.bodyLarge,
-                          ),
+                    Expanded(
+                      flex: 3,
+                      child: TextField(
+                        controller: _objectives[i].nameController,
+                        decoration: InputDecoration(
+                          labelText: 'Objective ${i + 1}',
+                          hintText: 'e.g. Push-ups',
                         ),
-                      )
-                    else
-                      Expanded(
-                        flex: 3,
-                        child: TextField(
-                          controller: _objectives[i].nameController,
-                          decoration: InputDecoration(
-                            labelText: 'Objective ${i + 1}',
-                            hintText: 'e.g. Push-ups',
-                          ),
-                          onChanged: (_) => setState(() {}),
-                        ),
+                        onChanged: (_) => setState(() {}),
                       ),
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       flex: 2,
@@ -237,24 +242,22 @@ class _ChallengeFormPageState extends State<ChallengeFormPage> {
                         ],
                       ),
                     ),
-                    if (!_isEditing)
-                      IconButton(
-                        onPressed: _objectives.length > 1
-                            ? () => _removeObjective(i)
-                            : null,
-                        icon: const Icon(Icons.remove_circle_outline),
-                      ),
+                    IconButton(
+                      onPressed: _objectives.length > 1
+                          ? () => _removeObjective(i)
+                          : null,
+                      icon: const Icon(Icons.remove_circle_outline),
+                    ),
                   ],
                 ),
               ),
-            if (!_isEditing)
-              OutlinedButton.icon(
-                onPressed: _objectives.length < maxChallengeObjectives
-                    ? _addObjective
-                    : null,
-                icon: const Icon(Icons.add),
-                label: const Text('Add objective'),
-              ),
+            OutlinedButton.icon(
+              onPressed: _objectives.length < maxChallengeObjectives
+                  ? _addObjective
+                  : null,
+              icon: const Icon(Icons.add),
+              label: const Text('Add objective'),
+            ),
           ],
         ),
       ),
