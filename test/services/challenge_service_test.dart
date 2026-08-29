@@ -73,7 +73,8 @@ void main() {
       expect(challenge.memberIds, ['u1']);
       expect(challenge.objectives, hasLength(1));
       expect(challenge.objectives.single.id, 'obj_0');
-      expect(challenge.code, hasLength(6));
+      expect(challenge.code, startsWith('C-'));
+      expect(challenge.code, hasLength(8));
 
       final participant = await _getParticipant(firestore, challenge.id, 'u1');
       expect(participant['displayName'], 'Jo');

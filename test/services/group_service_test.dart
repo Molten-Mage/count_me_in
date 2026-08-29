@@ -49,7 +49,8 @@ void main() {
       expect(group.target, 100);
       expect(group.createdBy, 'u1');
       expect(group.memberIds, ['u1']);
-      expect(group.code, hasLength(6));
+      expect(group.code, startsWith('G-'));
+      expect(group.code, hasLength(8));
 
       final members = await service.streamMembers(group.id).first;
       expect(members, hasLength(1));

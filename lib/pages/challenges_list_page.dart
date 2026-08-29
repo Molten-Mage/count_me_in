@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 
 import '../models/challenge.dart';
 import '../models/challenge_participant.dart';
+import '../services/app_navigation.dart';
 import '../services/challenge_service.dart';
+import '../services/invite_code_service.dart';
 import '../services/premium_service.dart';
 import '../widgets/app_dialog.dart';
 import '../widgets/challenge_emblem.dart';
@@ -11,6 +13,7 @@ import '../widgets/error_dialog.dart';
 import '../widgets/paywall_dialog.dart';
 import 'challenge_detail_page.dart';
 import 'challenge_form_page.dart';
+import 'group_detail_page.dart';
 
 String _participantsText(Challenge challenge) {
   final count = challenge.memberIds.length;
@@ -142,7 +145,17 @@ class _ChallengesListPageState extends State<ChallengesListPage>
 
   Future<void> _joinByCode(String code) async {
     try {
-      await _challengeService.joinChallengeByCode(code);
+      final joined = await joinChallengeOrGroupByCode(code);
+      final group = joined.group;
+      // A group code typed into "Join a challenge" - already joined via the
+      // fallback above, just needs to land the viewer on it since it won't
+      // show up in this page's own (challenge) list.
+      if (group != null && mounted) {
+        appNavigation.selectedTab.value = AppNavigation.groupsTabIndex;
+        appNavigation.groupsNavigatorKey.currentState?.push(
+          MaterialPageRoute(builder: (_) => GroupDetailPage(group: group)),
+        );
+      }
     } on StateError catch (e) {
       await _showJoinErrorThenRetry(e.message);
     } on FirebaseException catch (e) {

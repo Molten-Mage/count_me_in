@@ -150,14 +150,18 @@ class ChallengeService {
     await batch.commit();
   }
 
+  /// Generates a "C-" prefixed 6-character invite code, retrying on the
+  /// (extremely rare) chance it collides with a code already in use. The
+  /// prefix (groups get "G-", see GroupService) makes it obvious at a
+  /// glance which kind of code someone's looking at - joinByCode below
+  /// still falls back to the other type if the prefix doesn't match, so a
+  /// code typed into the wrong dialog isn't a dead end.
   Future<String> _generateUniqueCode() async {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
     final random = Random();
     for (var attempt = 0; attempt < 10; attempt++) {
-      final code = List.generate(
-        6,
-        (_) => chars[random.nextInt(chars.length)],
-      ).join();
+      final code =
+          'C-${List.generate(6, (_) => chars[random.nextInt(chars.length)]).join()}';
       final existing = await _challenges
           .where('code', isEqualTo: code)
           .limit(1)

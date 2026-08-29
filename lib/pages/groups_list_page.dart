@@ -3,12 +3,15 @@ import 'package:flutter/material.dart';
 
 import '../models/group.dart';
 import '../models/group_member.dart';
+import '../services/app_navigation.dart';
 import '../services/group_service.dart';
+import '../services/invite_code_service.dart';
 import '../services/premium_service.dart';
 import '../widgets/app_dialog.dart';
 import '../widgets/confirm_delete_dialog.dart';
 import '../widgets/error_dialog.dart';
 import '../widgets/paywall_dialog.dart';
+import 'challenge_detail_page.dart';
 import 'group_detail_page.dart';
 import 'group_form_page.dart';
 
@@ -132,7 +135,19 @@ class _GroupsListPageState extends State<GroupsListPage> {
   // the FAB menu.
   Future<void> _joinGroup(String code) async {
     try {
-      await _groupService.joinGroupByCode(code);
+      final joined = await joinGroupOrChallengeByCode(code);
+      final challenge = joined.challenge;
+      // A challenge code typed into "Join a group" - already joined via the
+      // fallback above, just needs to land the viewer on it since it won't
+      // show up in this page's own (group) list.
+      if (challenge != null && mounted) {
+        appNavigation.selectedTab.value = AppNavigation.challengesTabIndex;
+        appNavigation.challengesNavigatorKey.currentState?.push(
+          MaterialPageRoute(
+            builder: (_) => ChallengeDetailPage(challenge: challenge),
+          ),
+        );
+      }
     } on StateError catch (e) {
       await _showJoinErrorThenRetry(e.message);
     } on FirebaseException catch (e) {
