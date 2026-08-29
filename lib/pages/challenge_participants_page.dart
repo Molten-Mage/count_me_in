@@ -5,6 +5,7 @@ import '../models/challenge.dart';
 import '../models/challenge_participant.dart';
 import '../services/challenge_service.dart';
 import '../widgets/challenge_emblem.dart';
+import '../widgets/objective_standings.dart';
 
 String _participantsText(Challenge challenge) {
   final count = challenge.memberIds.length;
@@ -18,38 +19,13 @@ ChallengeParticipant? _find(List<ChallengeParticipant> participants, String? uid
   return null;
 }
 
-/// Which ranks to show for an objective's standings - always the top 3,
-/// plus (if the viewer isn't already in the top 3) a small window around
-/// their own rank. Firestore rules has no loop construct so this kind of
-/// "top-N + around me" trick doesn't apply there, but it's the same idea
-/// as a typical game leaderboard.
-List<int> _visibleRanks(int total, int? myRank) {
-  final ranks = <int>{};
-  for (var r = 1; r <= (total < 3 ? total : 3); r++) {
-    ranks.add(r);
-  }
-  if (myRank != null) {
-    for (var r = myRank - 1; r <= myRank + 1; r++) {
-      if (r >= 1 && r <= total) ranks.add(r);
-    }
-  }
-  return ranks.toList()..sort();
-}
-
 /// Standings for every objective - collapsed by default (just the
 /// objective name + goal), expand to see a compact leaderboard rather than
 /// listing every participant's name up front.
 class ChallengeParticipantsPage extends StatelessWidget {
   final Challenge challenge;
-  // If set, that objective's standings open already expanded - used by the
-  // "jump straight to this objective" shortcut on the detail page.
-  final String? initialExpandedObjectiveId;
 
-  const ChallengeParticipantsPage({
-    super.key,
-    required this.challenge,
-    this.initialExpandedObjectiveId,
-  });
+  const ChallengeParticipantsPage({super.key, required this.challenge});
 
   @override
   Widget build(BuildContext context) {
@@ -89,7 +65,6 @@ class ChallengeParticipantsPage extends StatelessWidget {
                   objective: objective,
                   participants: participants,
                   myUid: myUid,
-                  initiallyExpanded: objective.id == initialExpandedObjectiveId,
                 ),
             ],
           );
@@ -226,33 +201,19 @@ class _ObjectiveLeaderboard extends StatelessWidget {
   final ChallengeObjective objective;
   final List<ChallengeParticipant> participants;
   final String? myUid;
-  final bool initiallyExpanded;
 
   const _ObjectiveLeaderboard({
     required this.objective,
     required this.participants,
     required this.myUid,
-    this.initiallyExpanded = false,
   });
 
   @override
   Widget build(BuildContext context) {
     final target = objective.target;
-    final sorted = List<ChallengeParticipant>.of(participants)
-      ..sort((a, b) => b.tallyFor(objective.id).compareTo(a.tallyFor(objective.id)));
-
-    int? myRank;
-    for (var i = 0; i < sorted.length; i++) {
-      if (sorted[i].uid == myUid) {
-        myRank = i + 1;
-        break;
-      }
-    }
-    final visibleRanks = _visibleRanks(sorted.length, myRank);
 
     return Card(
       child: ExpansionTile(
-        initiallyExpanded: initiallyExpanded,
         title: Row(
           children: [
             Expanded(
@@ -266,99 +227,10 @@ class _ObjectiveLeaderboard extends StatelessWidget {
         ),
         childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
         children: [
-          if (sorted.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: Text(
-                'No participants yet.',
-                style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
-              ),
-            )
-          else
-            for (var i = 0; i < visibleRanks.length; i++) ...[
-              if (i > 0 && visibleRanks[i] - visibleRanks[i - 1] > 1)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 2),
-                  child: Text(
-                    '···',
-                    style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
-                  ),
-                ),
-              _LeaderboardRow(
-                rank: visibleRanks[i],
-                participant: sorted[visibleRanks[i] - 1],
-                objectiveId: objective.id,
-                target: target,
-                isMe: sorted[visibleRanks[i] - 1].uid == myUid,
-              ),
-            ],
-        ],
-      ),
-    );
-  }
-}
-
-class _LeaderboardRow extends StatelessWidget {
-  final int rank;
-  final ChallengeParticipant participant;
-  final String objectiveId;
-  final int? target;
-  final bool isMe;
-
-  const _LeaderboardRow({
-    required this.rank,
-    required this.participant,
-    required this.objectiveId,
-    required this.target,
-    required this.isMe,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final tally = participant.tallyFor(objectiveId);
-    final done = target != null && tally >= target!;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
-      decoration: isMe
-          ? BoxDecoration(
-              color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.4),
-              borderRadius: BorderRadius.circular(8),
-            )
-          : null,
-      child: Row(
-        children: [
-          SizedBox(
-            width: 28,
-            child: Text(
-              '#$rank',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              isMe ? 'You' : participant.displayName,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: isMe ? const TextStyle(fontWeight: FontWeight.bold) : null,
-            ),
-          ),
-          if (done) ...[
-            Icon(
-              Icons.check_circle,
-              size: 16,
-              color: Theme.of(context).colorScheme.primary,
-            ),
-            const SizedBox(width: 4),
-          ],
-          Text(
-            '$tally',
-            style: Theme.of(
-              context,
-            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+          ObjectiveStandings(
+            objective: objective,
+            participants: participants,
+            myUid: myUid,
           ),
         ],
       ),

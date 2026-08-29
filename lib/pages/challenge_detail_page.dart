@@ -14,6 +14,7 @@ import '../widgets/challenge_emblem.dart';
 import '../widgets/confirm_delete_dialog.dart';
 import '../widgets/editable_tally.dart';
 import '../widgets/error_dialog.dart';
+import '../widgets/objective_standings.dart';
 import 'challenge_form_page.dart';
 import 'challenge_participants_page.dart';
 
@@ -256,13 +257,10 @@ class _ChallengeDetailPageState extends State<ChallengeDetailPage> {
     }
   }
 
-  void _openInfo(Challenge challenge, {String? objectiveId}) {
+  void _openInfo(Challenge challenge) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => ChallengeParticipantsPage(
-          challenge: challenge,
-          initialExpandedObjectiveId: objectiveId,
-        ),
+        builder: (context) => ChallengeParticipantsPage(challenge: challenge),
       ),
     );
   }
@@ -591,17 +589,18 @@ class _ChallengeDetailPageState extends State<ChallengeDetailPage> {
                     ],
                     for (final objective in challenge.objectives)
                       _ObjectiveCard(
+                        key: ValueKey(objective.id),
                         objective: objective,
                         myTally: _effectiveTally(me, objective.id),
                         canEdit: !challenge.hasEnded && me != null,
+                        participants: participants,
+                        myUid: myUid,
                         onChanged: (value) => _setObjectiveTally(
                           challenge,
                           me,
                           objective,
                           value,
                         ),
-                        onTap: () =>
-                            _openInfo(challenge, objectiveId: objective.id),
                         onReset: () =>
                             _confirmResetObjective(challenge, objective),
                       ),
@@ -701,22 +700,30 @@ class _ChallengeHeader extends StatelessWidget {
   }
 }
 
+/// An objective card that doubles as its own collapsed/expanded standings
+/// view - collapsed shows just the viewer's own tally (editable in place
+/// via [EditableTally]), expanded adds the same top-3-plus-around-me
+/// leaderboard as the full challenge info page, so switching pages isn't
+/// needed just to see how others are doing on one objective.
 class _ObjectiveCard extends StatelessWidget {
   final ChallengeObjective objective;
   // Already resolved by the parent via _effectiveTally - includes any
   // optimistic override still in flight for this objective.
   final int myTally;
   final bool canEdit;
+  final List<ChallengeParticipant> participants;
+  final String? myUid;
   final ValueChanged<int> onChanged;
-  final VoidCallback onTap;
   final VoidCallback onReset;
 
   const _ObjectiveCard({
+    super.key,
     required this.objective,
     required this.myTally,
     required this.canEdit,
+    required this.participants,
+    required this.myUid,
     required this.onChanged,
-    required this.onTap,
     required this.onReset,
   });
 
@@ -729,61 +736,65 @@ class _ObjectiveCard extends StatelessWidget {
     );
 
     return Card(
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      objective.name,
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: 2),
-                    Row(
-                      children: [
-                        if (canEdit)
-                          EditableTally(
-                            value: myTally,
-                            onChanged: onChanged,
-                            style: subtleStyle,
-                            iconSize: 20,
-                          )
-                        else
-                          Text('$myTally', style: subtleStyle),
-                        if (target != null)
-                          Text(' / $target', style: subtleStyle),
-                        if (done) ...[
-                          const SizedBox(width: 6),
-                          Icon(
-                            Icons.check_circle,
-                            color: Theme.of(context).colorScheme.primary,
-                            size: 16,
-                          ),
-                        ],
+      child: ExpansionTile(
+        title: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    objective.name,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 2),
+                  Row(
+                    children: [
+                      if (canEdit)
+                        EditableTally(
+                          value: myTally,
+                          onChanged: onChanged,
+                          style: subtleStyle,
+                          iconSize: 20,
+                        )
+                      else
+                        Text('$myTally', style: subtleStyle),
+                      if (target != null)
+                        Text(' / $target', style: subtleStyle),
+                      if (done) ...[
+                        const SizedBox(width: 6),
+                        Icon(
+                          Icons.check_circle,
+                          color: Theme.of(context).colorScheme.primary,
+                          size: 16,
+                        ),
                       ],
-                    ),
-                  ],
-                ),
+                    ],
+                  ),
+                ],
               ),
-              // Always present (just disabled at zero) rather than
-              // conditionally shown/hidden - an optimistic tally update and
-              // the stream value briefly disagreeing about the zero
-              // boundary would otherwise make this icon flicker in and out.
-              if (canEdit)
-                IconButton(
-                  icon: const Icon(Icons.restart_alt),
-                  iconSize: 20,
-                  tooltip: 'Reset',
-                  onPressed: myTally > 0 ? onReset : null,
-                ),
-            ],
-          ),
+            ),
+            // Always present (just disabled at zero) rather than
+            // conditionally shown/hidden - an optimistic tally update and
+            // the stream value briefly disagreeing about the zero boundary
+            // would otherwise make this icon flicker in and out.
+            if (canEdit)
+              IconButton(
+                icon: const Icon(Icons.restart_alt),
+                iconSize: 20,
+                tooltip: 'Reset',
+                onPressed: myTally > 0 ? onReset : null,
+              ),
+          ],
         ),
+        childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+        children: [
+          ObjectiveStandings(
+            objective: objective,
+            participants: participants,
+            myUid: myUid,
+          ),
+        ],
       ),
     );
   }
