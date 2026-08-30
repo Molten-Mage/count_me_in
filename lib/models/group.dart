@@ -1,43 +1,30 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-const maxGroupBadges = 15;
+const maxGroupCounters = 10;
+
+class GroupCounter {
+  final String id;
+  final String name;
+
+  const GroupCounter({required this.id, required this.name});
+
+  Map<String, dynamic> toFirestore() => {'id': id, 'name': name};
+
+  factory GroupCounter.fromFirestore(Map<String, dynamic> data) =>
+      GroupCounter(id: data['id'] as String, name: data['name'] as String);
+}
 
 enum TallyControl { member, admin, free }
-
-class GroupBadge {
-  final int value;
-  final DateTime reachedAt;
-  final String gainedByName;
-
-  const GroupBadge({
-    required this.value,
-    required this.reachedAt,
-    required this.gainedByName,
-  });
-
-  Map<String, dynamic> toFirestore() => {
-    'value': value,
-    'reachedAt': Timestamp.fromDate(reachedAt),
-    'gainedByName': gainedByName,
-  };
-
-  factory GroupBadge.fromFirestore(Map<String, dynamic> data) => GroupBadge(
-    value: data['value'] as int,
-    reachedAt: (data['reachedAt'] as Timestamp).toDate(),
-    gainedByName: data['gainedByName'] as String,
-  );
-}
 
 class Group {
   final String id;
   final String name;
   final String description;
   final String code;
-  final int? target;
+  final List<GroupCounter> counters;
   final String createdBy;
   final DateTime createdAt;
   final List<String> memberIds;
-  final List<GroupBadge> badges;
   final bool adminControlled;
   final bool freeForAll;
 
@@ -46,11 +33,10 @@ class Group {
     required this.name,
     this.description = '',
     required this.code,
-    this.target,
+    required this.counters,
     required this.createdBy,
     required this.createdAt,
     required this.memberIds,
-    this.badges = const [],
     this.adminControlled = false,
     this.freeForAll = false,
   });
@@ -59,33 +45,42 @@ class Group {
       ? TallyControl.free
       : (adminControlled ? TallyControl.admin : TallyControl.member);
 
-  factory Group.fromFirestore(String id, Map<String, dynamic> data) => Group(
-    id: id,
-    name: data['name'] as String,
-    description: data['description'] as String? ?? '',
-    code: data['code'] as String,
-    target: data['target'] as int?,
-    createdBy: data['createdBy'] as String,
-    createdAt: (data['createdAt'] as Timestamp).toDate(),
-    memberIds: List<String>.from(data['memberIds'] as List<dynamic>),
-    badges:
-        (data['badges'] as List<dynamic>?)
-            ?.map((e) => GroupBadge.fromFirestore(e as Map<String, dynamic>))
-            .toList() ??
-        const [],
-    adminControlled: data['adminControlled'] as bool? ?? false,
-    freeForAll: data['freeForAll'] as bool? ?? false,
-  );
+  factory Group.fromFirestore(String id, Map<String, dynamic> data) {
+    final rawCounters = data['counters'] as List<dynamic>?;
+    // Pre-multi-counter groups (a single `tally` per member, an optional
+    // `target`, no `counters` field at all) are never batch-migrated -
+    // they're synthesized into a single "Total" counter here instead, so
+    // they keep working immediately under the new shape. GroupMember's own
+    // fromFirestore does the matching synthesis for `tally` -> `tallies`,
+    // both keyed on this same 'counter_0' id.
+    final counters = rawCounters == null
+        ? const [GroupCounter(id: 'counter_0', name: 'Total')]
+        : rawCounters
+              .map((e) => GroupCounter.fromFirestore(e as Map<String, dynamic>))
+              .toList();
+
+    return Group(
+      id: id,
+      name: data['name'] as String,
+      description: data['description'] as String? ?? '',
+      code: data['code'] as String,
+      counters: counters,
+      createdBy: data['createdBy'] as String,
+      createdAt: (data['createdAt'] as Timestamp).toDate(),
+      memberIds: List<String>.from(data['memberIds'] as List<dynamic>),
+      adminControlled: data['adminControlled'] as bool? ?? false,
+      freeForAll: data['freeForAll'] as bool? ?? false,
+    );
+  }
 
   Map<String, dynamic> toFirestore() => {
     'name': name,
     'description': description,
     'code': code,
-    'target': target,
+    'counters': counters.map((c) => c.toFirestore()).toList(),
     'createdBy': createdBy,
     'createdAt': Timestamp.fromDate(createdAt),
     'memberIds': memberIds,
-    'badges': badges.map((b) => b.toFirestore()).toList(),
     'adminControlled': adminControlled,
     'freeForAll': freeForAll,
   };

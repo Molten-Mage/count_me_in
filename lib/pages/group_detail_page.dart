@@ -10,10 +10,8 @@ import '../models/group_member.dart';
 import '../services/analytics_service.dart';
 import '../services/group_service.dart';
 import '../widgets/app_dialog.dart';
-import '../widgets/badge_icon.dart';
 import '../widgets/confirm_delete_dialog.dart';
 import '../widgets/editable_tally.dart';
-import '../widgets/goal_reached_dialog.dart';
 import 'group_form_page.dart';
 
 class GroupDetailPage extends StatefulWidget {
@@ -38,12 +36,10 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
   );
   late final Stream<List<GroupMember>> _membersStream = _groupService
       .streamMembers(widget.group.id);
-  int _currentTotal = 0;
-  int? _lastKnownTotal;
   // Displayed immediately on tap, ahead of the member-tally write actually
   // landing and this page's StreamBuilder catching up - otherwise every
   // tap waits on a full round trip before showing anything, which makes
-  // rapid tapping feel unresponsive. Keyed by member uid.
+  // rapid tapping feel unresponsive. Keyed by counter id, then member uid.
   //
   // Cleared reactively in _effectiveTally once the stream's own value
   // matches the prediction, NOT as soon as the write's Future resolves -
@@ -54,28 +50,31 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
   // edit (e.g. an admin editing the same member) means the stream's value
   // never exactly matches what was predicted, so the display doesn't get
   // stuck on a stale guess forever.
-  final Map<String, int> _tallyOverrides = {};
-  // Row order is captured once from the first snapshot of this visit to
-  // the page, then held fixed - re-sorting live as confirmed tallies cross
-  // each other would otherwise make rows jump around under a member's
-  // finger mid-session. Rank numbers (CircleAvatar below) still update
-  // live against the real standings; only which row a member occupies
-  // stays put until the page is reopened. Null until the first snapshot
-  // arrives.
-  List<String>? _frozenMemberOrder;
+  final Map<String, Map<String, int>> _tallyOverrides = {};
+  // Row order is captured once per counter from the first snapshot of this
+  // visit to the page, then held fixed for that counter - re-sorting live
+  // as confirmed tallies cross each other would otherwise make rows jump
+  // around under a member's finger mid-session. Rank numbers (CircleAvatar
+  // below) still update live against the real standings; only which row a
+  // member occupies stays put until the page is reopened. Keyed by
+  // counter id; a counter's list is null until its first snapshot arrives.
+  final Map<String, List<String>> _frozenMemberOrderByCounter = {};
 
-  /// Orders [rawMembers] by [_frozenMemberOrder], capturing that order
-  /// (by real tally, highest first) on the first call this visit. A
-  /// member who joins mid-visit is appended in whatever order the stream
-  /// delivered them, and starts tracking their own frozen position from
-  /// then on; a member who leaves just drops out of the rendered list
-  /// without disturbing anyone else's position.
-  List<GroupMember> _orderedMembers(List<GroupMember> rawMembers) {
+  /// Orders [rawMembers] by the frozen order for [counterId], capturing
+  /// that order (by real tally on this counter, highest first) on the
+  /// first call this visit. A member who joins mid-visit is appended in
+  /// whatever order the stream delivered them, and starts tracking their
+  /// own frozen position from then on; a member who leaves just drops out
+  /// of the rendered list without disturbing anyone else's position.
+  List<GroupMember> _orderedMembers(
+    String counterId,
+    List<GroupMember> rawMembers,
+  ) {
     final byUid = {for (final m in rawMembers) m.uid: m};
-    var frozen = _frozenMemberOrder;
+    var frozen = _frozenMemberOrderByCounter[counterId];
     if (frozen == null) {
       final initial = List<GroupMember>.of(rawMembers)
-        ..sort((a, b) => b.tally.compareTo(a.tally));
+        ..sort((a, b) => b.tallyFor(counterId).compareTo(a.tallyFor(counterId)));
       frozen = initial.map((m) => m.uid).toList();
     }
     final ordered = [
@@ -89,18 +88,19 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
       frozen = [...frozen, ...newcomers.map((m) => m.uid)];
       ordered.addAll(newcomers);
     }
-    _frozenMemberOrder = frozen;
+    _frozenMemberOrderByCounter[counterId] = frozen;
     return ordered;
   }
 
-  int _effectiveTally(GroupMember member) {
-    final override = _tallyOverrides[member.uid];
-    if (override == null) return member.tally;
-    if (override == member.tally) {
+  int _effectiveTally(GroupMember member, String counterId) {
+    final override = _tallyOverrides[counterId]?[member.uid];
+    if (override == null) return member.tallyFor(counterId);
+    final real = member.tallyFor(counterId);
+    if (override == real) {
       // The stream has caught up - safe to drop now, displays identically
       // either way. No setState: this is cache cleanup, not a value
       // change (this frame renders the same number regardless).
-      _tallyOverrides.remove(member.uid);
+      _tallyOverrides[counterId]?.remove(member.uid);
     }
     return override;
   }
@@ -113,26 +113,33 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
     );
   }
 
-  void _clearOverrideAfterDelay(String uid) {
+  void _clearOverrideAfterDelay(String counterId, String uid) {
     Future.delayed(const Duration(seconds: 5), () {
-      if (mounted) setState(() => _tallyOverrides.remove(uid));
+      if (mounted) setState(() => _tallyOverrides[counterId]?.remove(uid));
     });
   }
 
   Future<void> _incrementMember(
     Group group,
     GroupMember member,
+    String counterId,
     int amount,
   ) async {
     setState(
-      () => _tallyOverrides[member.uid] = _effectiveTally(member) + amount,
+      () => (_tallyOverrides[counterId] ??= {})[member.uid] =
+          _effectiveTally(member, counterId) + amount,
     );
     try {
-      await _groupService.incrementMemberTally(group.id, member.uid, amount);
-      _clearOverrideAfterDelay(member.uid);
+      await _groupService.incrementMemberTally(
+        group.id,
+        member.uid,
+        counterId,
+        amount,
+      );
+      _clearOverrideAfterDelay(counterId, member.uid);
     } catch (e) {
       if (!mounted) return;
-      setState(() => _tallyOverrides.remove(member.uid));
+      setState(() => _tallyOverrides[counterId]?.remove(member.uid));
       _showSaveError();
     }
   }
@@ -140,20 +147,26 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
   Future<void> _decrementMember(
     Group group,
     GroupMember member,
+    String counterId,
     int amount,
   ) async {
     setState(() {
-      _tallyOverrides[member.uid] = max(
-        _effectiveTally(member) - amount,
+      (_tallyOverrides[counterId] ??= {})[member.uid] = max(
+        _effectiveTally(member, counterId) - amount,
         0,
       );
     });
     try {
-      await _groupService.decrementMemberTally(group.id, member.uid, amount);
-      _clearOverrideAfterDelay(member.uid);
+      await _groupService.decrementMemberTally(
+        group.id,
+        member.uid,
+        counterId,
+        amount,
+      );
+      _clearOverrideAfterDelay(counterId, member.uid);
     } catch (e) {
       if (!mounted) return;
-      setState(() => _tallyOverrides.remove(member.uid));
+      setState(() => _tallyOverrides[counterId]?.remove(member.uid));
       _showSaveError();
     }
   }
@@ -161,18 +174,19 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
   /// Directly editing a member's tally field is expressed as a delta
   /// against their current (optimistic-aware) tally, then routed through
   /// [_incrementMember]/[_decrementMember] - reuses their existing
-  /// optimistic-update, badge-award, and rollback logic rather than
-  /// duplicating it for a third mutation path.
+  /// optimistic-update and rollback logic rather than duplicating it for a
+  /// third mutation path.
   Future<void> _setMemberTally(
     Group group,
     GroupMember member,
+    String counterId,
     int newValue,
   ) async {
-    final delta = newValue - _effectiveTally(member);
+    final delta = newValue - _effectiveTally(member, counterId);
     if (delta > 0) {
-      await _incrementMember(group, member, delta);
+      await _incrementMember(group, member, counterId, delta);
     } else if (delta < 0) {
-      await _decrementMember(group, member, -delta);
+      await _decrementMember(group, member, counterId, -delta);
     }
   }
 
@@ -277,13 +291,12 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
     );
   }
 
-  Future<void> _openEditGroupPage(Group group, int currentTotal) async {
+  Future<void> _openEditGroupPage(Group group) async {
     await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => GroupFormPage(
           groupService: _groupService,
           existingGroup: group,
-          currentTotal: currentTotal,
           onShowMembers: () => _showGroupMembersDialog(group),
         ),
       ),
@@ -321,7 +334,9 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
-                              subtitle: Text('${member.tally}'),
+                              subtitle: Text(
+                                '${member.tallies.values.fold<int>(0, (a, b) => a + b)} total',
+                              ),
                               trailing: member.uid == myUid
                                   ? null
                                   : IconButton(
@@ -394,23 +409,6 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
     );
   }
 
-  void _celebrateGoalReached(Group group, int target, int total) {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      showGoalReachedDialog(
-        context,
-        source: 'group',
-        message: '"${group.name}" hit $total! Great teamwork.',
-        badgeValue: target,
-        badgeColorIndex: 0,
-        currentCount: total,
-        onSetNewGoal: (newTarget) {
-          _groupService.updateGroup(group.id, name: group.name, target: newTarget);
-        },
-      );
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     final myUid = FirebaseAuth.instance.currentUser?.uid;
@@ -431,8 +429,7 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
                 itemBuilder: (_) => [
                   if (group.createdBy == myUid)
                     PopupMenuItem<VoidCallback>(
-                      value: () =>
-                          _openEditGroupPage(group, _currentTotal),
+                      value: () => _openEditGroupPage(group),
                       child: const ListTile(
                         contentPadding: EdgeInsets.zero,
                         leading: Icon(Icons.edit_outlined),
@@ -501,151 +498,36 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
                   );
                 }
                 final rawMembers = snapshot.data ?? const <GroupMember>[];
-                final members = _orderedMembers(rawMembers);
-                // Independent of row order above: rank numbers still track
-                // the real (server-confirmed) standings live, so a row that
-                // stays put can still show a rank that's moved.
-                final rankedByTally = List<GroupMember>.of(rawMembers)
-                  ..sort((a, b) => b.tally.compareTo(a.tally));
-                final rankByUid = {
-                  for (var i = 0; i < rankedByTally.length; i++)
-                    rankedByTally[i].uid: i + 1,
-                };
-                // `total` (server truth, drives the goal-reached celebration
-                // below) vs `displayTotal` (includes optimistic overrides,
-                // what's actually shown) - kept separate so a celebration
-                // never fires ahead of the write it's celebrating actually
-                // landing.
-                int total = 0;
-                int displayTotal = 0;
-                for (final member in members) {
-                  total += member.tally;
-                  displayTotal += _effectiveTally(member);
-                }
-                _currentTotal = total;
-                final target = group.target;
-                final adminName = _adminDisplayName(members, group.createdBy);
-
-                final previousTotal = _lastKnownTotal;
-                _lastKnownTotal = total;
-                if (target != null &&
-                    target > 0 &&
-                    previousTotal != null &&
-                    previousTotal < target &&
-                    total >= target) {
-                  _celebrateGoalReached(group, target, total);
-                }
+                final adminName = _adminDisplayName(rawMembers, group.createdBy);
 
                 return ListView(
                   padding: const EdgeInsets.all(12),
                   children: [
-                    Text(
-                      target != null
-                          ? 'Team goal: $displayTotal / $target'
-                          : 'Team total: $displayTotal',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    if (target != null) ...[
-                      const SizedBox(height: 8),
-                      LinearProgressIndicator(
-                        value: (displayTotal / target).clamp(0, 1).toDouble(),
-                      ),
-                    ],
                     if (group.description.isNotEmpty) ...[
-                      const SizedBox(height: 12),
                       Text(
                         group.description,
                         textAlign: TextAlign.center,
                         style: Theme.of(context).textTheme.bodyMedium,
                       ),
+                      const SizedBox(height: 12),
                     ],
-                    const SizedBox(height: 16),
-                    for (var i = 0; i < members.length; i++)
-                      Card(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 8,
-                          ),
-                          child: Row(
-                            children: [
-                              CircleAvatar(
-                                child: Text('${rankByUid[members[i].uid]}'),
-                              ),
-                              const SizedBox(width: 16),
-                              Expanded(
-                                child: Text(
-                                  members[i].displayName,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              if (switch (group.tallyControl) {
-                                TallyControl.admin => group.createdBy == myUid,
-                                TallyControl.free => true,
-                                TallyControl.member => members[i].uid == myUid,
-                              })
-                                EditableTally(
-                                  value: _effectiveTally(members[i]),
-                                  onChanged: (value) => _setMemberTally(
-                                    group,
-                                    members[i],
-                                    value,
-                                  ),
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .headlineSmall
-                                      ?.copyWith(fontWeight: FontWeight.w600),
-                                )
-                              else
-                                Text(
-                                  '${_effectiveTally(members[i])}',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .headlineSmall
-                                      ?.copyWith(fontWeight: FontWeight.w600),
-                                ),
-                            ],
-                          ),
+                    for (final counter in group.counters)
+                      _GroupCounterCard(
+                        key: ValueKey(counter.id),
+                        counter: counter,
+                        group: group,
+                        members: _orderedMembers(counter.id, rawMembers),
+                        rankedMembers: rawMembers,
+                        myUid: myUid,
+                        effectiveTally: _effectiveTally,
+                        onChanged: (member, value) => _setMemberTally(
+                          group,
+                          member,
+                          counter.id,
+                          value,
                         ),
                       ),
-                    if (target != null) ...[
-                      const SizedBox(height: 24),
-                      Text(
-                        'Badges',
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      const SizedBox(height: 8),
-                      if (group.badges.isEmpty)
-                        Text(
-                          'Reach your goal to earn a badge!',
-                          style: TextStyle(
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
-                          ),
-                        )
-                      else
-                        SizedBox(
-                          height: 100,
-                          child: ListView.separated(
-                            scrollDirection: Axis.horizontal,
-                            itemCount: group.badges.length,
-                            separatorBuilder: (context, index) =>
-                                const SizedBox(width: 12),
-                            itemBuilder: (context, index) {
-                              final badges = group.badges.reversed.toList();
-                              final chronologicalIndex =
-                                  group.badges.length - 1 - index;
-                              return _GroupBadgeChip(
-                                badge: badges[index],
-                                colorIndex: chronologicalIndex,
-                              );
-                            },
-                          ),
-                        ),
-                    ],
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 12),
                     Text(
                       'Group code',
                       style: Theme.of(context).textTheme.titleMedium,
@@ -683,50 +565,105 @@ String _adminDisplayName(List<GroupMember> members, String creatorUid) {
   return 'Unknown';
 }
 
-class _GroupBadgeChip extends StatelessWidget {
-  final GroupBadge badge;
-  final int colorIndex;
+/// One counter, expandable in place - collapsed shows just the name and
+/// the combined total across every member; expanded shows every member's
+/// own tally for this counter, editable wherever [group.tallyControl]
+/// permits it. Same expand-in-place pattern as `_ObjectiveCard` on the
+/// challenge detail page, but showing every member (not just the viewer's
+/// own row) since who's allowed to edit whom depends on tally-control
+/// mode, not just "is this me".
+class _GroupCounterCard extends StatelessWidget {
+  final GroupCounter counter;
+  final Group group;
+  // Frozen display order for this counter (see _orderedMembers).
+  final List<GroupMember> members;
+  // Unfrozen, for computing live ranks.
+  final List<GroupMember> rankedMembers;
+  final String? myUid;
+  final int Function(GroupMember member, String counterId) effectiveTally;
+  final void Function(GroupMember member, int value) onChanged;
 
-  const _GroupBadgeChip({required this.badge, required this.colorIndex});
+  const _GroupCounterCard({
+    super.key,
+    required this.counter,
+    required this.group,
+    required this.members,
+    required this.rankedMembers,
+    required this.myUid,
+    required this.effectiveTally,
+    required this.onChanged,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: 64,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
+    final combinedTotal = members.fold<int>(
+      0,
+      (sum, member) => sum + effectiveTally(member, counter.id),
+    );
+    final ranked = List<GroupMember>.of(rankedMembers)
+      ..sort(
+        (a, b) => b.tallyFor(counter.id).compareTo(a.tallyFor(counter.id)),
+      );
+    final rankByUid = {
+      for (var i = 0; i < ranked.length; i++) ranked[i].uid: i + 1,
+    };
+
+    return Card(
+      child: ExpansionTile(
+        initiallyExpanded: true,
+        title: Row(
+          children: [
+            Expanded(
+              child: Text(
+                counter.name,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+            ),
+            Text(
+              '$combinedTotal',
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+            ),
+          ],
+        ),
+        childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
         children: [
-          Stack(
-            clipBehavior: Clip.none,
-            children: [
-              BadgeIcon(value: badge.value, colorIndex: colorIndex),
-              Positioned(
-                left: -6,
-                top: -6,
-                child: Tooltip(
-                  message: badge.gainedByName,
-                  child: CircleAvatar(
-                    radius: 12,
-                    backgroundColor: Theme.of(context).colorScheme.primary,
+          for (final member in members)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(
+                children: [
+                  CircleAvatar(child: Text('${rankByUid[member.uid]}')),
+                  const SizedBox(width: 16),
+                  Expanded(
                     child: Text(
-                      initialsFor(badge.gainedByName),
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.onPrimary,
-                        fontSize: 9,
-                        fontWeight: FontWeight.bold,
-                      ),
+                      member.displayName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                ),
+                  const SizedBox(width: 8),
+                  if (switch (group.tallyControl) {
+                    TallyControl.admin => group.createdBy == myUid,
+                    TallyControl.free => true,
+                    TallyControl.member => member.uid == myUid,
+                  })
+                    EditableTally(
+                      value: effectiveTally(member, counter.id),
+                      onChanged: (value) => onChanged(member, value),
+                      style: Theme.of(context).textTheme.titleMedium
+                          ?.copyWith(fontWeight: FontWeight.w600),
+                    )
+                  else
+                    Text(
+                      '${effectiveTally(member, counter.id)}',
+                      style: Theme.of(context).textTheme.titleMedium
+                          ?.copyWith(fontWeight: FontWeight.w600),
+                    ),
+                ],
               ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            formatBadgeDate(badge.reachedAt),
-            style: Theme.of(context).textTheme.bodySmall,
-            textAlign: TextAlign.center,
-          ),
+            ),
         ],
       ),
     );

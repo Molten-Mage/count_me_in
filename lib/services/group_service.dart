@@ -8,11 +8,11 @@ import '../models/group.dart';
 import '../models/group_member.dart';
 import 'analytics_service.dart';
 
-/// Runs a best-effort side effect (badge-awarding, push notifications,
-/// activity tracking) without letting a failure there look like the tally
-/// write itself failed - those are all secondary to the tally update, and
-/// the UI's optimistic-update rollback should only trigger for a genuine
-/// failure to save the user's own tally.
+/// Runs a best-effort side effect (push notifications, activity tracking)
+/// without letting a failure there look like the tally write itself
+/// failed - those are secondary to the tally update, and the UI's
+/// optimistic-update rollback should only trigger for a genuine failure to
+/// save the user's own tally.
 Future<void> _bestEffort(String label, Future<void> Function() action) async {
   try {
     await action();
@@ -137,33 +137,53 @@ class GroupService {
   }
 
   /// [description]/[adminControlled]/[freeForAll] are left unchanged when
-  /// omitted, so callers that only touch name/target (e.g. the
-  /// goal-reached dialog's "set a new goal") don't need to know or care
-  /// about the group's current description or tally-control mode.
+  /// omitted, so callers that only touch name (e.g. a future "rename only"
+  /// flow) don't need to know or care about the group's current
+  /// description or tally-control mode.
   Future<void> updateGroup(
     String groupId, {
     required String name,
     String? description,
-    required int? target,
     bool? adminControlled,
     bool? freeForAll,
   }) async {
     await _groups.doc(groupId).update({
       'name': name,
-      'target': target,
       'description': ?description,
       'adminControlled': ?adminControlled,
       'freeForAll': ?freeForAll,
     });
   }
 
+  /// Assigns a real id to any newly-added counter (matched by list
+  /// position against [GroupCounter]s the caller already resolved ids
+  /// for) from whichever `counter_0`..`counter_9` slots aren't already in
+  /// use - same id-pool approach as
+  /// ChallengeService.updateObjectives/ChallengeFormPage. No transaction:
+  /// unlike a per-participant tally change, there's no derived state here
+  /// that a concurrent edit could leave inconsistent.
+  Future<void> updateCounters(
+    String groupId,
+    List<GroupCounter> counters,
+  ) async {
+    await _groups.doc(groupId).update({
+      'counters': counters.map((c) => c.toFirestore()).toList(),
+    });
+  }
+
   Future<Group> createGroup({
     required String name,
     String description = '',
-    int? target,
+    required List<String> counterNames,
     bool adminControlled = false,
     bool freeForAll = false,
   }) async {
+    if (counterNames.isEmpty || counterNames.length > maxGroupCounters) {
+      throw ArgumentError(
+        'A group needs between 1 and $maxGroupCounters counters.',
+      );
+    }
+
     final code = await _generateUniqueCode();
     final now = DateTime.now();
     final docRef = _groups.doc();
@@ -172,7 +192,10 @@ class GroupService {
       name: name,
       description: description,
       code: code,
-      target: target,
+      counters: [
+        for (var i = 0; i < counterNames.length; i++)
+          GroupCounter(id: 'counter_$i', name: counterNames[i]),
+      ],
       createdBy: _uid,
       createdAt: now,
       memberIds: [_uid],
@@ -186,7 +209,7 @@ class GroupService {
       GroupMember(
         uid: _uid,
         displayName: _displayName,
-        tally: 0,
+        tallies: const {},
         joinedAt: now,
       ).toFirestore(),
     );
@@ -219,13 +242,17 @@ class GroupService {
         GroupMember(
           uid: _uid,
           displayName: _displayName,
-          tally: 0,
+          tallies: const {},
           joinedAt: DateTime.now(),
         ).toFirestore(),
       );
 
       final notifications = _firestore.collection('pushNotifications');
       for (final recipientUid in group.memberIds) {
+        // The creator gets their own `group_joined_owner` notification
+        // below instead - sending both to them here was a duplicate "X
+        // joined" push for the same event.
+        if (recipientUid == group.createdBy) continue;
         transaction.set(notifications.doc(), {
           'recipientUid': recipientUid,
           'type': 'group_joined',
@@ -235,8 +262,7 @@ class GroupService {
         });
       }
       // Separate, independently-toggleable notification just for the
-      // group's creator (a stricter subset of the loop above, which
-      // already covers every member including the creator).
+      // group's creator.
       transaction.set(notifications.doc(), {
         'recipientUid': group.createdBy,
         'type': 'group_joined_owner',
@@ -322,23 +348,50 @@ class GroupService {
     await analyticsService.logGroupDeleted();
   }
 
-  /// Increments [uid]'s tally within the group. Firestore rules enforce who
-  /// is allowed to do this: the member themselves in a member-controlled
-  /// group, or the group's creator in an admin-controlled one.
+  /// Increments [uid]'s tally for [counterId] within the group. Firestore
+  /// rules enforce who is allowed to do this: the member themselves in a
+  /// member-controlled group, the group's creator in an admin-controlled
+  /// one, or anyone in a free-for-all one. A dot-path update on the
+  /// tallies map, same as before this had multiple counters - Firestore
+  /// treats a missing nested field as 0, so a first-ever tally on a given
+  /// counter needs no extra branch.
   Future<void> incrementMemberTally(
     String groupId,
     String uid,
+    String counterId,
     int amount,
   ) async {
     final groupRef = _groups.doc(groupId);
     await groupRef.collection('members').doc(uid).update({
-      'tally': FieldValue.increment(amount),
+      'tallies.$counterId': FieldValue.increment(amount),
     });
-    await _bestEffort('badge award', () => _maybeAwardGroupBadge(groupRef));
+    await _bestEffort('activity touch', () => _touchGroupActivity(groupRef));
     await _bestEffort(
-      'threshold notify',
-      () => _maybeNotifyThreshold(groupRef, uid),
+      'tally update notify',
+      () => _maybeNotifyTallyUpdate(groupRef, uid, counterId),
     );
+  }
+
+  /// Decrements [uid]'s tally for [counterId], clamped at zero. Same
+  /// permission model as [incrementMemberTally]. Needs a transaction
+  /// (unlike the increment above) since clamping at zero requires reading
+  /// the current value first.
+  Future<void> decrementMemberTally(
+    String groupId,
+    String uid,
+    String counterId,
+    int amount,
+  ) async {
+    final groupRef = _groups.doc(groupId);
+    final ref = groupRef.collection('members').doc(uid);
+    await _firestore.runTransaction((transaction) async {
+      final snapshot = await transaction.get(ref);
+      final tallies = Map<String, int>.from(
+        (snapshot.data()?['tallies'] as Map<String, dynamic>?) ?? {},
+      );
+      final current = tallies[counterId] ?? 0;
+      transaction.update(ref, {'tallies.$counterId': max(current - amount, 0)});
+    });
     await _bestEffort('activity touch', () => _touchGroupActivity(groupRef));
   }
 
@@ -358,125 +411,57 @@ class GroupService {
     });
   }
 
-  /// Notifies the rest of the group once [memberUid]'s own tally reaches
-  /// 80% of the group's target, once per target value (dedupe mirrors
-  /// [_maybeAwardGroupBadge]'s pattern via a field on the member doc
-  /// instead of the group's badges list, since this is per-member rather
-  /// than combined). Writes are picked up and actually sent by the
-  /// `sendPushNotification` Cloud Function (functions/index.js), which
-  /// also checks the recipient's notification preference before sending.
-  Future<void> _maybeNotifyThreshold(
+  /// Notifies the rest of the group that [memberUid] upped their tally for
+  /// [counterId], at most once per day per group (not per member/counter -
+  /// a group with several people tallying several counters throughout the
+  /// day should still only ever produce one of these a day, not a flood).
+  /// Runs as a transaction so two increments landing close together can't
+  /// both slip past the same dedupe check and double-send.
+  Future<void> _maybeNotifyTallyUpdate(
     DocumentReference<Map<String, dynamic>> groupRef,
     String memberUid,
+    String counterId,
   ) async {
     await _firestore.runTransaction((transaction) async {
       final groupSnapshot = await transaction.get(groupRef);
       final groupData = groupSnapshot.data();
       if (groupData == null) return;
       final group = Group.fromFirestore(groupSnapshot.id, groupData);
+      if (group.memberIds.length <= 1) return;
 
-      final target = group.target;
-      if (target == null || target <= 0) return;
+      final lastNotified =
+          (groupData['lastTallyNotifiedAt'] as Timestamp?)?.toDate();
+      if (lastNotified != null &&
+          DateTime.now().difference(lastNotified) < const Duration(days: 1)) {
+        return;
+      }
 
-      final memberRef = groupRef.collection('members').doc(memberUid);
-      final memberSnapshot = await transaction.get(memberRef);
-      final memberData = memberSnapshot.data();
-      if (memberData == null) return;
-      final member = GroupMember.fromFirestore(memberUid, memberData);
+      String? counterName;
+      for (final counter in group.counters) {
+        if (counter.id == counterId) {
+          counterName = counter.name;
+          break;
+        }
+      }
+      if (counterName == null) return;
 
-      if (member.notifiedThresholdFor == target) return;
-      final threshold = (target * 0.8).ceil();
-      if (member.tally < threshold) return;
-
-      transaction.update(memberRef, {'notifiedThresholdFor': target});
+      transaction.update(groupRef, {
+        'lastTallyNotifiedAt': FieldValue.serverTimestamp(),
+      });
 
       final notifications = _firestore.collection('pushNotifications');
       for (final recipientUid in group.memberIds) {
         if (recipientUid == memberUid) continue;
         transaction.set(notifications.doc(), {
           'recipientUid': recipientUid,
-          'type': 'group_threshold',
+          'type': 'group_tally_update',
           'title': group.name,
-          'body': '${member.displayName} just hit 80% of the group goal!',
+          'body':
+              '$_displayName has upped their count for $counterName in '
+              '${group.name}!',
           'createdAt': FieldValue.serverTimestamp(),
         });
       }
     });
-  }
-
-  /// Awards a badge for the group's current target if the combined tally
-  /// has reached it and no badge has been awarded for that target yet.
-  /// Runs as a transaction so concurrent increments from different members
-  /// can't award duplicate badges for the same target.
-  Future<void> _maybeAwardGroupBadge(
-    DocumentReference<Map<String, dynamic>> groupRef,
-  ) async {
-    await _firestore.runTransaction((transaction) async {
-      final groupSnapshot = await transaction.get(groupRef);
-      final groupData = groupSnapshot.data();
-      if (groupData == null) return;
-      final group = Group.fromFirestore(groupSnapshot.id, groupData);
-
-      final target = group.target;
-      if (target == null || target <= 0) return;
-      if (group.badges.any((b) => b.value == target)) return;
-
-      var total = 0;
-      for (final uid in group.memberIds) {
-        final memberSnapshot = await transaction.get(
-          groupRef.collection('members').doc(uid),
-        );
-        total += (memberSnapshot.data()?['tally'] as int?) ?? 0;
-      }
-      if (total < target) return;
-
-      var updatedBadges = [
-        ...group.badges,
-        GroupBadge(
-          value: target,
-          reachedAt: DateTime.now(),
-          gainedByName: _displayName,
-        ),
-      ];
-      if (updatedBadges.length > maxGroupBadges) {
-        updatedBadges = updatedBadges.sublist(
-          updatedBadges.length - maxGroupBadges,
-        );
-      }
-      transaction.update(groupRef, {
-        'badges': updatedBadges.map((b) => b.toFirestore()).toList(),
-      });
-
-      // Everyone but whoever's tally just crossed the line gets a push -
-      // they already see the in-app celebration dialog immediately.
-      final notifications = _firestore.collection('pushNotifications');
-      for (final recipientUid in group.memberIds) {
-        if (recipientUid == _uid) continue;
-        transaction.set(notifications.doc(), {
-          'recipientUid': recipientUid,
-          'type': 'group_goal_reached',
-          'title': group.name,
-          'body': 'Goal reached - $total/$target!',
-          'createdAt': FieldValue.serverTimestamp(),
-        });
-      }
-    });
-  }
-
-  /// Decrements [uid]'s tally within the group, clamped at zero. Same
-  /// permission model as [incrementMemberTally].
-  Future<void> decrementMemberTally(
-    String groupId,
-    String uid,
-    int amount,
-  ) async {
-    final groupRef = _groups.doc(groupId);
-    final ref = groupRef.collection('members').doc(uid);
-    await _firestore.runTransaction((transaction) async {
-      final snapshot = await transaction.get(ref);
-      final current = (snapshot.data()?['tally'] as int?) ?? 0;
-      transaction.update(ref, {'tally': max(current - amount, 0)});
-    });
-    await _bestEffort('activity touch', () => _touchGroupActivity(groupRef));
   }
 }

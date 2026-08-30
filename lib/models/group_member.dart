@@ -3,34 +3,39 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class GroupMember {
   final String uid;
   final String displayName;
-  final int tally;
+  final Map<String, int> tallies;
   final DateTime joinedAt;
-  // The group target this member was last notified for reaching 80% of -
-  // null if never notified. Compared against the group's current target
-  // so a target change makes them eligible for a fresh notification.
-  final int? notifiedThresholdFor;
 
   const GroupMember({
     required this.uid,
     required this.displayName,
-    required this.tally,
+    required this.tallies,
     required this.joinedAt,
-    this.notifiedThresholdFor,
   });
 
-  factory GroupMember.fromFirestore(String uid, Map<String, dynamic> data) =>
-      GroupMember(
-        uid: uid,
-        displayName: data['displayName'] as String,
-        tally: data['tally'] as int,
-        joinedAt: (data['joinedAt'] as Timestamp).toDate(),
-        notifiedThresholdFor: data['notifiedThresholdFor'] as int?,
-      );
+  int tallyFor(String counterId) => tallies[counterId] ?? 0;
+
+  factory GroupMember.fromFirestore(String uid, Map<String, dynamic> data) {
+    final rawTallies = data['tallies'] as Map<String, dynamic>?;
+    // Pre-multi-counter members (a single `tally` int, no `tallies` map)
+    // are synthesized into a single-entry map keyed 'counter_0' - same id
+    // Group.fromFirestore synthesizes its legacy "Total" counter under, so
+    // the two line up without a real migration.
+    final tallies = rawTallies != null
+        ? Map<String, int>.from(rawTallies)
+        : {if (data['tally'] != null) 'counter_0': data['tally'] as int};
+
+    return GroupMember(
+      uid: uid,
+      displayName: data['displayName'] as String,
+      tallies: tallies,
+      joinedAt: (data['joinedAt'] as Timestamp).toDate(),
+    );
+  }
 
   Map<String, dynamic> toFirestore() => {
     'displayName': displayName,
-    'tally': tally,
+    'tallies': tallies,
     'joinedAt': Timestamp.fromDate(joinedAt),
-    'notifiedThresholdFor': notifiedThresholdFor,
   };
 }

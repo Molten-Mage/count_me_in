@@ -31,6 +31,35 @@ service cloud.firestore {
         && challengeTallyValueValid(tallies, 'obj_9');
     }
 
+    // Group counter ids are always 'counter_0'..'counter_9' (assigned by
+    // index at creation, capped at maxGroupCounters in
+    // lib/models/group.dart) - same enumerable-id approach as challenge
+    // objectives above, and for the same reason (no loop construct here).
+    function groupCounterIds() {
+      return ['counter_0', 'counter_1', 'counter_2', 'counter_3', 'counter_4', 'counter_5', 'counter_6', 'counter_7', 'counter_8', 'counter_9'];
+    }
+
+    function groupTallyValueValid(tallies, key) {
+      return !(key in tallies)
+        || (tallies[key] is int && tallies[key] >= 0 && tallies[key] <= 999999);
+    }
+
+    // Every key must be a known counter id, and every present value must
+    // be a non-negative int within a sane bound.
+    function groupTalliesValid(tallies) {
+      return tallies.keys().hasOnly(groupCounterIds())
+        && groupTallyValueValid(tallies, 'counter_0')
+        && groupTallyValueValid(tallies, 'counter_1')
+        && groupTallyValueValid(tallies, 'counter_2')
+        && groupTallyValueValid(tallies, 'counter_3')
+        && groupTallyValueValid(tallies, 'counter_4')
+        && groupTallyValueValid(tallies, 'counter_5')
+        && groupTallyValueValid(tallies, 'counter_6')
+        && groupTallyValueValid(tallies, 'counter_7')
+        && groupTallyValueValid(tallies, 'counter_8')
+        && groupTallyValueValid(tallies, 'counter_9');
+    }
+
     match /users/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
@@ -68,9 +97,8 @@ service cloud.firestore {
       // Anyone signed in can join (adds only their own uid to memberIds).
       // Any current member can leave on their own (memberIds shrinks by
       // exactly their own uid) - used for account deletion too. Only the
-      // creator can remove OTHER members, or edit the group's name/target.
-      // Any current member can award a badge (badges-only change) when
-      // their increment crosses the group's goal.
+      // creator can remove OTHER members, or edit the group's
+      // name/description/counters/tally-control mode.
       allow update: if request.auth != null
         && (
           (
@@ -103,21 +131,25 @@ service cloud.firestore {
           || (
             request.auth.uid == resource.data.createdBy
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(
-              ['name', 'description', 'target', 'adminControlled', 'freeForAll']
+              ['name', 'description', 'adminControlled', 'freeForAll']
             )
           )
           || (
-            request.auth.uid in resource.data.memberIds
-            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['badges'])
+            request.auth.uid == resource.data.createdBy
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['counters'])
+            && request.resource.data.counters.size() >= 1
+            && request.resource.data.counters.size() <= 10
           )
           // Any current member can bump the group's activity timestamp
           // (and clear any pending "gone quiet" reminder) - see
           // GroupService._touchGroupActivity, called on every tally
           // change. Read by the notifyGroupQuiet Cloud Function.
+          // `lastTallyNotifiedAt` is the same idea for
+          // GroupService._maybeNotifyTallyUpdate's once-a-day dedupe.
           || (
             request.auth.uid in resource.data.memberIds
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(
-              ['lastActivityAt', 'quietNotifiedAt']
+              ['lastActivityAt', 'quietNotifiedAt', 'lastTallyNotifiedAt']
             )
           )
         );
@@ -128,31 +160,25 @@ service cloud.firestore {
         allow read: if request.auth != null;
 
         // Joining a group is always self-service, and the member doc must
-        // start at exactly zero (with no threshold notification sent yet).
+        // start with an empty tallies map.
         allow create: if request.auth != null
           && request.auth.uid == memberId
           && request.resource.data.keys().hasOnly(
-            ['displayName', 'tally', 'joinedAt', 'notifiedThresholdFor']
+            ['displayName', 'tallies', 'joinedAt']
           )
           && request.resource.data.displayName is string
-          && request.resource.data.tally == 0
-          && request.resource.data.joinedAt is timestamp
-          && request.resource.data.notifiedThresholdFor == null;
+          && request.resource.data.tallies == {}
+          && request.resource.data.joinedAt is timestamp;
 
         // In a member-controlled group (the default, and legacy groups
         // predating the `adminControlled` field) each member updates their
         // own doc. In an admin-controlled group only the group's creator
         // can update any member's doc, including their own. In a
         // free-for-all group (`freeForAll`) any current member can update
-        // any other member's doc. Either the `tally` field changes (kept a
-        // non-negative int within a sane bound - previously any value,
-        // including negative or unbounded, was accepted here with no
-        // server-side check, relying only on the app's client-side
-        // clamping; keep this bound in sync with `maxCounterInput` in
-        // lib/widgets/app_dialog.dart), or - as a separate write, from
-        // GroupService._maybeNotifyThreshold - just `notifiedThresholdFor`
-        // changes, recording that this member's 80%-of-target push
-        // notification has already gone out.
+        // any other member's doc. The `tallies` map changes, each present
+        // value kept a non-negative int within a sane bound (mirrors
+        // challengeTalliesValid above; keep both in sync with
+        // `maxCounterInput` in lib/widgets/app_dialog.dart).
         allow update: if request.auth != null
           && (
             (
@@ -169,25 +195,15 @@ service cloud.firestore {
                     in get(/databases/$(database)/documents/groups/$(groupId)).data.memberIds
                 )
               )
-              && (
-                (
-                  request.resource.data.diff(resource.data).affectedKeys().hasOnly(['tally'])
-                  && request.resource.data.tally is int
-                  && request.resource.data.tally >= 0
-                  && request.resource.data.tally <= 999999
-                )
-                || (
-                  request.resource.data.diff(resource.data).affectedKeys().hasOnly(['notifiedThresholdFor'])
-                  && request.resource.data.notifiedThresholdFor is int
-                )
-              )
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['tallies'])
+              && groupTalliesValid(request.resource.data.tallies)
             )
             // Renaming yourself propagates your current Auth display name
             // into this denormalized snapshot - always self-service and
             // independent of the group's tally-control mode above (unlike
-            // `tally`, this isn't a tally-control concern at all), so it's
-            // its own top-level alternative rather than nested under the
-            // permission check above.
+            // `tallies`, this isn't a tally-control concern at all), so
+            // it's its own top-level alternative rather than nested under
+            // the permission check above.
             || (
               request.auth.uid == memberId
               && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName'])

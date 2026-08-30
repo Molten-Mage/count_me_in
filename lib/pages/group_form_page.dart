@@ -1,23 +1,32 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../models/group.dart';
 import '../services/group_service.dart';
-import '../widgets/app_dialog.dart';
 import '../widgets/error_dialog.dart';
 
+class _CounterInput {
+  // Null for a counter not yet saved to Firestore (a brand new one, in
+  // either create mode or added while editing an existing group) -
+  // _submit assigns it a real id from the unused counter_0..counter_9 pool
+  // at save time. Non-null for one that already exists server-side.
+  final String? id;
+  final TextEditingController nameController;
+
+  _CounterInput({this.id, String name = ''})
+    : nameController = TextEditingController(text: name);
+
+  void dispose() => nameController.dispose();
+}
+
 /// Create-a-group and edit-a-group share this one full-screen form -
-/// unlike challenges, every field here (name, description, goal, tally
-/// control) stays editable after creation too, matching what
-/// firestore.rules already lets the creator change, so there's no
-/// create/edit split in which fields show or are read-only.
+/// unlike challenges, name/description/tally-control stay editable after
+/// creation too, matching what firestore.rules already lets the creator
+/// change. Counters - names, and the set of counters (add/remove) - are
+/// fully editable in both modes, same shape as ChallengeFormPage's
+/// objectives editor.
 class GroupFormPage extends StatefulWidget {
   final GroupService groupService;
   final Group? existingGroup;
-  // Only meaningful in edit mode - the goal-target field's lower bound, so
-  // you can't set a target below what the group has already collectively
-  // reached. Always 0 in create mode, since nothing's been tallied yet.
-  final int currentTotal;
   // Only offered in edit mode; null hides the "Group Members" button.
   final VoidCallback? onShowMembers;
 
@@ -25,7 +34,6 @@ class GroupFormPage extends StatefulWidget {
     super.key,
     required this.groupService,
     this.existingGroup,
-    this.currentTotal = 0,
     this.onShowMembers,
   });
 
@@ -42,10 +50,12 @@ class _GroupFormPageState extends State<GroupFormPage> {
   late final _descriptionController = TextEditingController(
     text: widget.existingGroup?.description ?? '',
   );
-  late final _targetController = TextEditingController(
-    text: widget.existingGroup?.target?.toString() ?? '',
-  );
-  late bool _hasTarget = widget.existingGroup?.target != null;
+  late final List<_CounterInput> _counters = widget.existingGroup != null
+      ? [
+          for (final c in widget.existingGroup!.counters)
+            _CounterInput(id: c.id, name: c.name),
+        ]
+      : [_CounterInput()];
   late TallyControl _tallyControl =
       widget.existingGroup?.tallyControl ?? TallyControl.member;
   bool _isSubmitting = false;
@@ -54,18 +64,47 @@ class _GroupFormPageState extends State<GroupFormPage> {
   void dispose() {
     _nameController.dispose();
     _descriptionController.dispose();
-    _targetController.dispose();
+    for (final counter in _counters) {
+      counter.dispose();
+    }
     super.dispose();
   }
 
+  void _addCounter() {
+    if (_counters.length >= maxGroupCounters) return;
+    setState(() => _counters.add(_CounterInput()));
+  }
+
+  void _removeCounter(int index) {
+    if (_counters.length <= 1) return;
+    setState(() => _counters.removeAt(index).dispose());
+  }
+
   bool get _isValid {
-    final target = int.tryParse(_targetController.text);
-    final isTargetValid =
-        !_hasTarget ||
-        (target != null &&
-            target > widget.currentTotal &&
-            target <= maxCounterInput);
-    return _nameController.text.trim().isNotEmpty && isTargetValid;
+    final countersValid = _counters.every(
+      (c) => c.nameController.text.trim().isNotEmpty,
+    );
+    return _nameController.text.trim().isNotEmpty && countersValid;
+  }
+
+  /// Assigns a real id to any newly-added counter (id == null) from
+  /// whichever `counter_0`..`counter_9` slots the group's existing
+  /// counters aren't already using - same id-pool approach as
+  /// ChallengeFormPage._resolveEditedObjectives.
+  List<GroupCounter> _resolveEditedCounters() {
+    final usedIds = _counters.map((c) => c.id).whereType<String>().toSet();
+    final freeIds = [
+      for (var i = 0; i < maxGroupCounters; i++)
+        if (!usedIds.contains('counter_$i')) 'counter_$i',
+    ];
+    var nextFreeId = 0;
+    return [
+      for (final counter in _counters)
+        GroupCounter(
+          id: counter.id ?? freeIds[nextFreeId++],
+          name: counter.nameController.text.trim(),
+        ),
+    ];
   }
 
   Future<void> _submit() async {
@@ -74,7 +113,6 @@ class _GroupFormPageState extends State<GroupFormPage> {
 
     final name = _nameController.text.trim();
     final description = _descriptionController.text.trim();
-    final target = _hasTarget ? int.tryParse(_targetController.text) : null;
     final adminControlled = _tallyControl == TallyControl.admin;
     final freeForAll = _tallyControl == TallyControl.free;
 
@@ -84,15 +122,20 @@ class _GroupFormPageState extends State<GroupFormPage> {
           widget.existingGroup!.id,
           name: name,
           description: description,
-          target: target,
           adminControlled: adminControlled,
           freeForAll: freeForAll,
+        );
+        await widget.groupService.updateCounters(
+          widget.existingGroup!.id,
+          _resolveEditedCounters(),
         );
       } else {
         await widget.groupService.createGroup(
           name: name,
           description: description,
-          target: target,
+          counterNames: [
+            for (final counter in _counters) counter.nameController.text.trim(),
+          ],
           adminControlled: adminControlled,
           freeForAll: freeForAll,
         );
@@ -142,34 +185,50 @@ class _GroupFormPageState extends State<GroupFormPage> {
               maxLines: 2,
             ),
             const SizedBox(height: 20),
-            CheckboxListTile(
-              contentPadding: EdgeInsets.zero,
-              secondary: const Icon(Icons.flag_outlined),
-              title: const Text('Add goal?'),
-              value: _hasTarget,
-              onChanged: (value) {
-                setState(() => _hasTarget = value ?? false);
-              },
-            ),
-            if (_hasTarget)
-              TextField(
-                controller: _targetController,
-                decoration: InputDecoration(
-                  labelText: 'Target count',
-                  hintText: 'e.g. ${nextTenAbove(widget.currentTotal)}',
-                  helperText:
-                      'Must be between ${widget.currentTotal + 1} and '
-                      '$maxCounterInput',
-                ),
-                keyboardType: TextInputType.number,
-                inputFormatters: [
-                  FilteringTextInputFormatter.digitsOnly,
-                  LengthLimitingTextInputFormatter(
-                    maxCounterInput.toString().length,
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Counters', style: Theme.of(context).textTheme.titleSmall),
+                Text(
+                  '${_counters.length} / $maxGroupCounters',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
-                ],
-                onChanged: (_) => setState(() {}),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            for (var i = 0; i < _counters.length; i++)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _counters[i].nameController,
+                        decoration: InputDecoration(
+                          labelText: 'Counter ${i + 1}',
+                          hintText: 'e.g. Steps',
+                        ),
+                        onChanged: (_) => setState(() {}),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: _counters.length > 1
+                          ? () => _removeCounter(i)
+                          : null,
+                      icon: const Icon(Icons.remove_circle_outline),
+                    ),
+                  ],
+                ),
               ),
+            OutlinedButton.icon(
+              onPressed: _counters.length < maxGroupCounters
+                  ? _addCounter
+                  : null,
+              icon: const Icon(Icons.add),
+              label: const Text('Add counter'),
+            ),
             const SizedBox(height: 20),
             Text(
               'Who controls tallies?',

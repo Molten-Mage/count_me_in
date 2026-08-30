@@ -46,26 +46,15 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
               const Divider(height: 1),
               const _SectionHeader('Groups'),
               SwitchListTile(
-                secondary: const Icon(Icons.groups_outlined),
-                title: const Text('Group progress'),
+                secondary: const Icon(Icons.trending_up_outlined),
+                title: const Text('Group tally updates'),
                 subtitle: const Text(
-                  "Notify me when someone in a group I'm in reaches 80% "
-                  'of the goal',
+                  "Notify me when someone ups their count in a group I'm "
+                  'in (at most once a day per group)',
                 ),
-                value: prefs.groupThreshold,
+                value: prefs.groupTallyUpdate,
                 onChanged: prefs.allEnabled
-                    ? (value) => _service.setGroupThreshold(value)
-                    : null,
-              ),
-              SwitchListTile(
-                secondary: const Icon(Icons.emoji_events_outlined),
-                title: const Text('Group goal reached'),
-                subtitle: const Text(
-                  "Notify me when a group I'm in hits its goal",
-                ),
-                value: prefs.groupGoalReached,
-                onChanged: prefs.allEnabled
-                    ? (value) => _service.setGroupGoalReached(value)
+                    ? (value) => _service.setGroupTallyUpdate(value)
                     : null,
               ),
               SwitchListTile(

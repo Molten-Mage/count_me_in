@@ -12,13 +12,13 @@ void main() {
         name: 'Family steps',
         description: '10k steps a day, every day',
         code: 'STEP01',
-        target: 100000,
+        counters: const [
+          GroupCounter(id: 'counter_0', name: 'Steps'),
+          GroupCounter(id: 'counter_1', name: 'Chores'),
+        ],
         createdBy: 'u1',
         createdAt: createdAt,
         memberIds: const ['u1', 'u2'],
-        badges: [
-          GroupBadge(value: 100000, reachedAt: createdAt, gainedByName: 'Jo'),
-        ],
         adminControlled: true,
       );
 
@@ -27,29 +27,43 @@ void main() {
       expect(restored.name, 'Family steps');
       expect(restored.description, '10k steps a day, every day');
       expect(restored.code, 'STEP01');
-      expect(restored.target, 100000);
       expect(restored.createdBy, 'u1');
       expect(restored.createdAt, createdAt);
       expect(restored.memberIds, ['u1', 'u2']);
-      expect(restored.badges, hasLength(1));
-      expect(restored.badges.single.gainedByName, 'Jo');
+      expect(restored.counters, hasLength(2));
+      expect(restored.counters.first.name, 'Steps');
       expect(restored.adminControlled, isTrue);
     });
 
-    test('fromFirestore defaults missing badges/adminControlled/target', () {
+    test('fromFirestore defaults missing description/adminControlled', () {
       final data = {
         'name': 'Minimal group',
         'code': 'MIN001',
-        'target': null,
+        'counters': [
+          {'id': 'counter_0', 'name': 'Total'},
+        ],
         'createdBy': 'u1',
         'createdAt': Timestamp.fromDate(createdAt),
         'memberIds': ['u1'],
       };
       final restored = Group.fromFirestore('g1', data);
-      expect(restored.target, isNull);
       expect(restored.description, isEmpty);
-      expect(restored.badges, isEmpty);
       expect(restored.adminControlled, isFalse);
+    });
+
+    test('a legacy group (no counters field) synthesizes a single "Total" counter', () {
+      final data = {
+        'name': 'Legacy group',
+        'code': 'LEG001',
+        'target': 500,
+        'createdBy': 'u1',
+        'createdAt': Timestamp.fromDate(createdAt),
+        'memberIds': ['u1'],
+      };
+      final restored = Group.fromFirestore('g1', data);
+      expect(restored.counters, hasLength(1));
+      expect(restored.counters.single.id, 'counter_0');
+      expect(restored.counters.single.name, 'Total');
     });
   });
 }

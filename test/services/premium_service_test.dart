@@ -78,7 +78,7 @@ void main() {
       await GroupService(
         firestore: firestore,
         auth: MockFirebaseAuth(signedIn: true, mockUser: MockUser(uid: uid)),
-      ).createGroup(name: 'Group A');
+      ).createGroup(name: 'Group A', counterNames: ['Total']);
 
       final challengeService = ChallengeService(
         firestore: firestore,

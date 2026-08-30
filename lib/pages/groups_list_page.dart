@@ -297,13 +297,19 @@ class _GroupsListPageState extends State<GroupsListPage> {
                       final members = snapshot.data ?? const <GroupMember>[];
                       final total = members.fold<int>(
                         0,
-                        (sum, member) => sum + member.tally,
+                        (sum, member) =>
+                            sum +
+                            member.tallies.values.fold<int>(
+                              0,
+                              (a, b) => a + b,
+                            ),
                       );
-                      final target = group.target;
+                      final counterCount = group.counters.length;
+                      final counterWord = counterCount == 1
+                          ? 'counter'
+                          : 'counters';
                       return Text(
-                        target != null
-                            ? 'Group progress: $total/$target'
-                            : 'Group counter: $total',
+                        '$counterCount $counterWord · $total total',
                       );
                     },
                   ),

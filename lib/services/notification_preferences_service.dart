@@ -6,11 +6,10 @@ class NotificationPreferences {
   // turning it off is a real kill switch, not just a UI shortcut for
   // flipping the seven type toggles below.
   final bool allEnabled;
-  final bool groupThreshold;
-  final bool groupGoalReached;
   final bool groupQuiet;
   final bool groupMemberJoined;
   final bool myGroupMemberJoined;
+  final bool groupTallyUpdate;
   final bool challengeHalfway;
   final bool challengeDeadline;
   final bool challengePassed;
@@ -19,11 +18,10 @@ class NotificationPreferences {
 
   const NotificationPreferences({
     this.allEnabled = true,
-    this.groupThreshold = true,
-    this.groupGoalReached = true,
     this.groupQuiet = true,
     this.groupMemberJoined = true,
     this.myGroupMemberJoined = true,
+    this.groupTallyUpdate = true,
     this.challengeHalfway = true,
     this.challengeDeadline = true,
     this.challengePassed = true,
@@ -34,11 +32,10 @@ class NotificationPreferences {
   factory NotificationPreferences.fromFirestore(Map<String, dynamic>? data) =>
       NotificationPreferences(
         allEnabled: data?['allEnabled'] as bool? ?? true,
-        groupThreshold: data?['groupThreshold'] as bool? ?? true,
-        groupGoalReached: data?['groupGoalReached'] as bool? ?? true,
         groupQuiet: data?['groupQuiet'] as bool? ?? true,
         groupMemberJoined: data?['groupMemberJoined'] as bool? ?? true,
         myGroupMemberJoined: data?['myGroupMemberJoined'] as bool? ?? true,
+        groupTallyUpdate: data?['groupTallyUpdate'] as bool? ?? true,
         challengeHalfway: data?['challengeHalfway'] as bool? ?? true,
         challengeDeadline: data?['challengeDeadline'] as bool? ?? true,
         challengePassed: data?['challengePassed'] as bool? ?? true,
@@ -82,11 +79,6 @@ class NotificationPreferencesService {
 
   Future<void> setAllEnabled(bool value) => _setPref('allEnabled', value);
 
-  Future<void> setGroupThreshold(bool value) => _setPref('groupThreshold', value);
-
-  Future<void> setGroupGoalReached(bool value) =>
-      _setPref('groupGoalReached', value);
-
   Future<void> setGroupQuiet(bool value) => _setPref('groupQuiet', value);
 
   Future<void> setGroupMemberJoined(bool value) =>
@@ -94,6 +86,9 @@ class NotificationPreferencesService {
 
   Future<void> setMyGroupMemberJoined(bool value) =>
       _setPref('myGroupMemberJoined', value);
+
+  Future<void> setGroupTallyUpdate(bool value) =>
+      _setPref('groupTallyUpdate', value);
 
   Future<void> setChallengeHalfway(bool value) =>
       _setPref('challengeHalfway', value);
