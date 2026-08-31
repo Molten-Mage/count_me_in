@@ -60,6 +60,38 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
   // counter id; a counter's list is null until its first snapshot arrives.
   final Map<String, List<String>> _frozenMemberOrderByCounter = {};
 
+  // One ExpansibleController per counter (created lazily, kept for the
+  // page's lifetime) so the "Collapse all"/"Expand all" button can drive
+  // every card at once - an ExpansionTile is otherwise uncontrolled, so
+  // there'd be no way to force all of them open/closed from outside.
+  // Mirrors each tile's own current state, updated via its
+  // onExpansionChanged - missing entries mean "never touched", which
+  // defaults to true (expanded) to match the tiles' own initiallyExpanded.
+  final Map<String, ExpansibleController> _counterControllers = {};
+  final Map<String, bool> _counterExpanded = {};
+
+  ExpansibleController _counterController(String counterId) =>
+      _counterControllers.putIfAbsent(counterId, () => ExpansibleController());
+
+  bool _allCountersCollapsed(List<GroupCounter> counters) =>
+      counters.every((c) => !(_counterExpanded[c.id] ?? true));
+
+  void _toggleAllCounters(List<GroupCounter> counters) {
+    final expand = _allCountersCollapsed(counters);
+    for (final counter in counters) {
+      if (expand) {
+        _counterController(counter.id).expand();
+      } else {
+        _counterController(counter.id).collapse();
+      }
+    }
+    setState(() {
+      for (final counter in counters) {
+        _counterExpanded[counter.id] = expand;
+      }
+    });
+  }
+
   /// Orders [rawMembers] by the frozen order for [counterId], capturing
   /// that order (by real tally on this counter, highest first) on the
   /// first call this visit. A member who joins mid-visit is appended in
@@ -511,6 +543,25 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
                       ),
                       const SizedBox(height: 12),
                     ],
+                    if (group.counters.length > 1) ...[
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton.icon(
+                          onPressed: () => _toggleAllCounters(group.counters),
+                          icon: Icon(
+                            _allCountersCollapsed(group.counters)
+                                ? Icons.unfold_more
+                                : Icons.unfold_less,
+                          ),
+                          label: Text(
+                            _allCountersCollapsed(group.counters)
+                                ? 'Expand all'
+                                : 'Collapse all',
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                    ],
                     for (final counter in group.counters)
                       _GroupCounterCard(
                         key: ValueKey(counter.id),
@@ -520,6 +571,10 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
                         rankedMembers: rawMembers,
                         myUid: myUid,
                         effectiveTally: _effectiveTally,
+                        controller: _counterController(counter.id),
+                        onExpansionChanged: (expanded) => setState(
+                          () => _counterExpanded[counter.id] = expanded,
+                        ),
                         onChanged: (member, value) => _setMemberTally(
                           group,
                           member,
@@ -581,6 +636,8 @@ class _GroupCounterCard extends StatelessWidget {
   final List<GroupMember> rankedMembers;
   final String? myUid;
   final int Function(GroupMember member, String counterId) effectiveTally;
+  final ExpansibleController controller;
+  final ValueChanged<bool> onExpansionChanged;
   final void Function(GroupMember member, int value) onChanged;
 
   const _GroupCounterCard({
@@ -591,6 +648,8 @@ class _GroupCounterCard extends StatelessWidget {
     required this.rankedMembers,
     required this.myUid,
     required this.effectiveTally,
+    required this.controller,
+    required this.onExpansionChanged,
     required this.onChanged,
   });
 
@@ -611,6 +670,8 @@ class _GroupCounterCard extends StatelessWidget {
     return Card(
       child: ExpansionTile(
         initiallyExpanded: true,
+        controller: controller,
+        onExpansionChanged: onExpansionChanged,
         title: Row(
           children: [
             Expanded(

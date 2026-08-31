@@ -80,6 +80,13 @@ class _GroupFormPageState extends State<GroupFormPage> {
     setState(() => _counters.removeAt(index).dispose());
   }
 
+  void _reorderCounters(int oldIndex, int newIndex) {
+    setState(() {
+      final counter = _counters.removeAt(oldIndex);
+      _counters.insert(newIndex, counter);
+    });
+  }
+
   bool get _isValid {
     final countersValid = _counters.every(
       (c) => c.nameController.text.trim().isNotEmpty,
@@ -198,30 +205,47 @@ class _GroupFormPageState extends State<GroupFormPage> {
               ],
             ),
             const SizedBox(height: 8),
-            for (var i = 0; i < _counters.length; i++)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _counters[i].nameController,
-                        decoration: InputDecoration(
-                          labelText: 'Counter ${i + 1}',
-                          hintText: 'e.g. Steps',
+            ReorderableListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              buildDefaultDragHandles: false,
+              itemCount: _counters.length,
+              onReorderItem: _reorderCounters,
+              itemBuilder: (context, i) {
+                final counter = _counters[i];
+                return Padding(
+                  key: ValueKey(counter),
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Row(
+                    children: [
+                      ReorderableDragStartListener(
+                        index: i,
+                        child: const Padding(
+                          padding: EdgeInsets.only(right: 8),
+                          child: Icon(Icons.drag_handle),
                         ),
-                        onChanged: (_) => setState(() {}),
                       ),
-                    ),
-                    IconButton(
-                      onPressed: _counters.length > 1
-                          ? () => _removeCounter(i)
-                          : null,
-                      icon: const Icon(Icons.remove_circle_outline),
-                    ),
-                  ],
-                ),
-              ),
+                      Expanded(
+                        child: TextField(
+                          controller: counter.nameController,
+                          decoration: InputDecoration(
+                            labelText: 'Counter ${i + 1}',
+                            hintText: 'e.g. Steps',
+                          ),
+                          onChanged: (_) => setState(() {}),
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: _counters.length > 1
+                            ? () => _removeCounter(i)
+                            : null,
+                        icon: const Icon(Icons.remove_circle_outline),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
             OutlinedButton.icon(
               onPressed: _counters.length < maxGroupCounters
                   ? _addCounter

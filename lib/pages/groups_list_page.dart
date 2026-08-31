@@ -308,8 +308,14 @@ class _GroupsListPageState extends State<GroupsListPage> {
                       final counterWord = counterCount == 1
                           ? 'counter'
                           : 'counters';
-                      return Text(
-                        '$counterCount $counterWord · $total total',
+                      final memberCount = members.length;
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text('$counterCount $counterWord · $total total'),
+                          if (memberCount > 1) Text('$memberCount members'),
+                        ],
                       );
                     },
                   ),

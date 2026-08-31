@@ -102,6 +102,42 @@ class _ChallengeDetailPageState extends State<ChallengeDetailPage> {
   // actually confirming it.
   final Map<String, int> _tallyOverrides = {};
 
+  // One ExpansibleController per objective (created lazily, kept for
+  // the page's lifetime) so the "Collapse all"/"Expand all" button can
+  // drive every card at once - an ExpansionTile is otherwise
+  // uncontrolled, so there'd be no way to force all of them open/closed
+  // from outside. Mirrors each tile's own current state, updated via its
+  // onExpansionChanged - missing entries mean "never touched", which
+  // defaults to false (collapsed) to match the tiles' own
+  // initiallyExpanded default.
+  final Map<String, ExpansibleController> _objectiveControllers = {};
+  final Map<String, bool> _objectiveExpanded = {};
+
+  ExpansibleController _objectiveController(String objectiveId) =>
+      _objectiveControllers.putIfAbsent(
+        objectiveId,
+        () => ExpansibleController(),
+      );
+
+  bool _allObjectivesCollapsed(List<ChallengeObjective> objectives) =>
+      objectives.every((o) => !(_objectiveExpanded[o.id] ?? false));
+
+  void _toggleAllObjectives(List<ChallengeObjective> objectives) {
+    final expand = _allObjectivesCollapsed(objectives);
+    for (final objective in objectives) {
+      if (expand) {
+        _objectiveController(objective.id).expand();
+      } else {
+        _objectiveController(objective.id).collapse();
+      }
+    }
+    setState(() {
+      for (final objective in objectives) {
+        _objectiveExpanded[objective.id] = expand;
+      }
+    });
+  }
+
   int _effectiveTally(ChallengeParticipant? me, String objectiveId) {
     final override = _tallyOverrides[objectiveId];
     if (override == null) return me?.tallyFor(objectiveId) ?? 0;
@@ -587,6 +623,26 @@ class _ChallengeDetailPageState extends State<ChallengeDetailPage> {
                       ),
                       const SizedBox(height: 12),
                     ],
+                    if (challenge.objectives.length > 1) ...[
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton.icon(
+                          onPressed: () =>
+                              _toggleAllObjectives(challenge.objectives),
+                          icon: Icon(
+                            _allObjectivesCollapsed(challenge.objectives)
+                                ? Icons.unfold_more
+                                : Icons.unfold_less,
+                          ),
+                          label: Text(
+                            _allObjectivesCollapsed(challenge.objectives)
+                                ? 'Expand all'
+                                : 'Collapse all',
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                    ],
                     for (final objective in challenge.objectives)
                       _ObjectiveCard(
                         key: ValueKey(objective.id),
@@ -595,6 +651,10 @@ class _ChallengeDetailPageState extends State<ChallengeDetailPage> {
                         canEdit: !challenge.hasEnded && me != null,
                         participants: participants,
                         myUid: myUid,
+                        controller: _objectiveController(objective.id),
+                        onExpansionChanged: (expanded) => setState(
+                          () => _objectiveExpanded[objective.id] = expanded,
+                        ),
                         onChanged: (value) => _setObjectiveTally(
                           challenge,
                           me,
@@ -713,6 +773,8 @@ class _ObjectiveCard extends StatelessWidget {
   final bool canEdit;
   final List<ChallengeParticipant> participants;
   final String? myUid;
+  final ExpansibleController controller;
+  final ValueChanged<bool> onExpansionChanged;
   final ValueChanged<int> onChanged;
   final VoidCallback onReset;
 
@@ -723,6 +785,8 @@ class _ObjectiveCard extends StatelessWidget {
     required this.canEdit,
     required this.participants,
     required this.myUid,
+    required this.controller,
+    required this.onExpansionChanged,
     required this.onChanged,
     required this.onReset,
   });
@@ -737,6 +801,8 @@ class _ObjectiveCard extends StatelessWidget {
 
     return Card(
       child: ExpansionTile(
+        controller: controller,
+        onExpansionChanged: onExpansionChanged,
         title: Row(
           children: [
             Expanded(

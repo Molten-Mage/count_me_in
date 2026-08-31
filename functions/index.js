@@ -15,11 +15,10 @@ const messaging = getMessaging();
 // gates it - kept in sync with
 // lib/services/notification_preferences_service.dart.
 const PREF_KEY_BY_TYPE = {
-  group_threshold: "groupThreshold",
-  group_goal_reached: "groupGoalReached",
   group_quiet: "groupQuiet",
   group_joined: "groupMemberJoined",
   group_joined_owner: "myGroupMemberJoined",
+  group_tally_update: "groupTallyUpdate",
   challenge_halfway: "challengeHalfway",
   challenge_deadline: "challengeDeadline",
   challenge_passed: "challengePassed",
@@ -28,12 +27,13 @@ const PREF_KEY_BY_TYPE = {
 };
 
 /**
- * Every notification type (group 80% threshold from the Flutter client,
- * challenge-halfway and counter-inactivity from the scheduled functions in
- * this file) writes one doc per recipient into `pushNotifications`. This
- * is the single place that actually calls FCM: it checks the recipient's
- * per-type preference and stored token, sends if eligible, and always
- * deletes the doc afterward so the collection never accumulates old jobs.
+ * Every notification type (group/challenge join notices from the Flutter
+ * client, challenge-halfway, counter-inactivity, and group-quiet from the
+ * scheduled functions in this file) writes one doc per recipient into
+ * `pushNotifications`. This is the single place that actually calls FCM:
+ * it checks the recipient's per-type preference and stored token, sends
+ * if eligible, and always deletes the doc afterward so the collection
+ * never accumulates old jobs.
  */
 exports.sendPushNotification = onDocumentCreated(
     "pushNotifications/{id}",
@@ -334,9 +334,12 @@ function pick(list) {
   return list[randomInt(list.length)];
 }
 
+// "C-" prefixed to match ChallengeService._generateUniqueCode() on the
+// client (challenge_service.dart) - keeps official, server-generated
+// challenges using the same invite code format as user-created ones.
 async function generateUniqueChallengeCode() {
   for (let attempt = 0; attempt < 10; attempt++) {
-    let code = "";
+    let code = "C-";
     for (let i = 0; i < 6; i++) code += pick(INVITE_CODE_CHARS.split(""));
     const existing = await db.collection("challenges")
         .where("code", "==", code).limit(1).get();

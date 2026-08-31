@@ -92,6 +92,13 @@ class _ChallengeFormPageState extends State<ChallengeFormPage> {
     setState(() => _objectives.removeAt(index).dispose());
   }
 
+  void _reorderObjectives(int oldIndex, int newIndex) {
+    setState(() {
+      final objective = _objectives.removeAt(oldIndex);
+      _objectives.insert(newIndex, objective);
+    });
+  }
+
   Future<void> _pickDeadline() async {
     final picked = await showDatePicker(
       context: context,
@@ -210,47 +217,64 @@ class _ChallengeFormPageState extends State<ChallengeFormPage> {
               ],
             ),
             const SizedBox(height: 8),
-            for (var i = 0; i < _objectives.length; i++)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      flex: 3,
-                      child: TextField(
-                        controller: _objectives[i].nameController,
-                        decoration: InputDecoration(
-                          labelText: 'Objective ${i + 1}',
-                          hintText: 'e.g. Push-ups',
+            ReorderableListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              buildDefaultDragHandles: false,
+              itemCount: _objectives.length,
+              onReorderItem: _reorderObjectives,
+              itemBuilder: (context, i) {
+                final objective = _objectives[i];
+                return Padding(
+                  key: ValueKey(objective),
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      ReorderableDragStartListener(
+                        index: i,
+                        child: const Padding(
+                          padding: EdgeInsets.only(top: 16, right: 8),
+                          child: Icon(Icons.drag_handle),
                         ),
-                        onChanged: (_) => setState(() {}),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      flex: 2,
-                      child: TextField(
-                        controller: _objectives[i].targetController,
-                        decoration: const InputDecoration(labelText: 'Target'),
-                        keyboardType: TextInputType.number,
-                        inputFormatters: [
-                          FilteringTextInputFormatter.digitsOnly,
-                          LengthLimitingTextInputFormatter(
-                            maxCounterInput.toString().length,
+                      Expanded(
+                        flex: 3,
+                        child: TextField(
+                          controller: objective.nameController,
+                          decoration: InputDecoration(
+                            labelText: 'Objective ${i + 1}',
+                            hintText: 'e.g. Push-ups',
                           ),
-                        ],
+                          onChanged: (_) => setState(() {}),
+                        ),
                       ),
-                    ),
-                    IconButton(
-                      onPressed: _objectives.length > 1
-                          ? () => _removeObjective(i)
-                          : null,
-                      icon: const Icon(Icons.remove_circle_outline),
-                    ),
-                  ],
-                ),
-              ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        flex: 2,
+                        child: TextField(
+                          controller: objective.targetController,
+                          decoration: const InputDecoration(labelText: 'Target'),
+                          keyboardType: TextInputType.number,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                            LengthLimitingTextInputFormatter(
+                              maxCounterInput.toString().length,
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: _objectives.length > 1
+                            ? () => _removeObjective(i)
+                            : null,
+                        icon: const Icon(Icons.remove_circle_outline),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
             OutlinedButton.icon(
               onPressed: _objectives.length < maxChallengeObjectives
                   ? _addObjective
